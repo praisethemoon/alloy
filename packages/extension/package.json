@@ -1,0 +1,51 @@
+{
+    "name": "vscode-alloy-lsp",
+    "description": "The extension specific package",
+    "version": "0.0.1",
+    "displayName": "alloy-lsp",
+    "type": "module",
+    "engines": {
+        "vscode": "^1.91.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "alloy-lsp",
+            "aliases": ["Alloy LSP", "alloy-lsp"],
+            "extensions": [".als"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "alloy-lsp",
+            "scopeName": "source.alloy-lsp",
+            "path": "syntaxes/alloy-lsp.tmLanguage.json"
+        }]
+    },
+    "activationEvents": [
+        "onLanguage:alloy-lsp"
+    ],
+    "main": "./out/extension/main.cjs",
+    "scripts": {
+        "clean": "shx rm -fr *.tsbuildinfo out syntaxes",
+        "vscode:prepublish": "npm run build",
+        "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/alloy-lsp.tmLanguage.json ./syntaxes/alloy-lsp.tmLanguage.json",
+        "build": "npm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
+        "build:clean": "npm run clean && npm run build",
+        "watch": "npm run build:prepare && concurrently -n tsc,esbuild -c blue,yellow \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\""
+    },
+    "dependencies": {
+        "alloy-lsp-language": "0.0.1",
+        "vscode-languageclient": "~10.1.0",
+        "vscode-languageserver": "~10.1.0"
+    },
+    "devDependencies": {
+        "@types/vscode": "~1.91.0",
+        "concurrently": "~10.0.4",
+        "esbuild": "0.28.2"
+    },
+    "vsce": {
+      "dependencies": false
+    }
+}

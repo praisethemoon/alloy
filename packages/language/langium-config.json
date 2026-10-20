@@ -1,0 +1,16 @@
+{
+    "projectName": "AlloyLsp",
+    "languages": [
+        {
+            "id": "alloy-lsp",
+            "grammar": "src/alloy-lsp.langium",
+            "fileExtensions": [
+                ".als"
+            ],
+            "textMate": {
+                "out": "syntaxes/alloy-lsp.tmLanguage.json"
+            }
+        }
+    ],
+    "out": "src/generated"
+}
