@@ -2,6 +2,7 @@ import { type Module, inject } from 'langium';
 import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices } from 'langium/lsp';
 import { AlloyLspGeneratedModule, AlloyLspGeneratedSharedModule } from './generated/module.js';
 import { AlloyLspValidator, registerValidationChecks } from './alloy-lsp-validator.js';
+import { AlloyLspValueConverter } from './alloy-lsp-value-converter.js';
 
 /**
  * Declaration of custom services - add your own service classes here.
@@ -24,6 +25,9 @@ export type AlloyLspServices = LangiumServices & AlloyLspAddedServices
  * selected services, while the custom services must be fully specified.
  */
 export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & AlloyLspAddedServices> = {
+    parser: {
+        ValueConverter: () => new AlloyLspValueConverter()
+    },
     validation: {
         AlloyLspValidator: () => new AlloyLspValidator()
     }
