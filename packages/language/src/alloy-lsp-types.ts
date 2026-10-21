@@ -200,7 +200,9 @@ export class AlloyTypeSystem {
     }
 
     /** Types `expr` in a position expecting `expected`, recording what is wrong with it. */
-    protected check(expr: Expr, expected: Expectation, issues: TypeIssue[]): AlloyType {
+    protected check(expr: Expr | undefined, expected: Expectation, issues: TypeIssue[]): AlloyType {
+        // While the user types, the parser recovers with operands missing.
+        if (!expr) return UNKNOWN;
         const type = this.compute(expr, issues);
         this.types.set(expr, type);
         if (expected === 'formula' && (type.kind === 'relation' || type.kind === 'int')) {
@@ -491,7 +493,7 @@ export class AlloyTypeSystem {
             return isPredDecl(callee) ? FORMULA : this.funResult(callee);
         }
         const left = this.check(e.left, 'expression', issues);
-        if (e.right.$type === 'BuiltinRef') return e.right.fn === 'int' || e.right.fn === 'sum' ? INT : FORMULA;
+        if (e.right?.$type === 'BuiltinRef') return e.right.fn === 'int' || e.right.fn === 'sum' ? INT : FORMULA;
         const right = this.check(e.right, 'expression', issues);
         return this.join(e, left, right, issues);
     }

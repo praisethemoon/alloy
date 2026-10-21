@@ -7,6 +7,10 @@ import { AlloyLinker } from './alloy-lsp-linker.js';
 import { AlloyModuleResolver } from './alloy-lsp-modules.js';
 import { AlloyScopeComputation, AlloyScopeProvider } from './alloy-lsp-scope.js';
 import { AlloyTypeSystem } from './alloy-lsp-types.js';
+import { AlloyCompletionProvider } from './alloy-lsp-completion.js';
+import { AlloyDefinitionProvider } from './alloy-lsp-definition.js';
+import { AlloyHoverProvider } from './alloy-lsp-hover.js';
+import { AlloyDocumentSymbolProvider, AlloyNodeKindProvider } from './alloy-lsp-symbols.js';
 import { AlloyWorkspaceManager } from './alloy-lsp-workspace.js';
 
 /**
@@ -48,6 +52,12 @@ export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & A
     typing: {
         TypeSystem: (services) => new AlloyTypeSystem(services)
     },
+    lsp: {
+        CompletionProvider: (services) => new AlloyCompletionProvider(services),
+        DefinitionProvider: (services) => new AlloyDefinitionProvider(services),
+        DocumentSymbolProvider: () => new AlloyDocumentSymbolProvider(),
+        HoverProvider: (services) => new AlloyHoverProvider(services)
+    },
     validation: {
         AlloyLspValidator: (services) => new AlloyLspValidator(services)
     }
@@ -57,6 +67,9 @@ export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & A
 export const AlloyLspSharedModule: Module<LangiumSharedServices, PartialLangiumSharedServices> = {
     workspace: {
         WorkspaceManager: (services) => new AlloyWorkspaceManager(services)
+    },
+    lsp: {
+        NodeKindProvider: () => new AlloyNodeKindProvider()
     }
 };
 

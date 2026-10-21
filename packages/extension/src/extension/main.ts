@@ -1,5 +1,5 @@
 import type { LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 
@@ -8,6 +8,10 @@ let client: LanguageClient;
 // This function is called when the extension is activated.
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     client = await startLanguageClient(context);
+    // Definitions in the bundled util library open as read-only alloy-lib: documents.
+    context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('alloy-lib', {
+        provideTextDocumentContent: uri => client.sendRequest<string | undefined>('alloy/utilModule', uri.toString()).then(text => text ?? '')
+    }));
 }
 
 // This function is called when the extension is deactivated.
