@@ -98,6 +98,21 @@ describe.skipIf(!jar)("with the Alloy jar", () => {
         expect((await services.AlloyLsp.analysis.Analyzer.run(document, 2)).outcome).toBe("no-counterexample");
     });
 
+    test("a run past the timeout stops and says so, and 0 means no limit", { timeout: 120_000 }, async () => {
+        const services = await alloyServices();
+        const configure = (timeoutSeconds: number) => services.shared.workspace.ConfigurationProvider.updateConfiguration({
+            settings: { "alloy-lsp": { analyzer: { jar, timeoutSeconds } } }
+        });
+        const { document } = await modelOnDisk(model);
+        // Starting java alone takes longer than this.
+        configure(0.2);
+        const stopped = await services.AlloyLsp.analysis.Analyzer.run(document, 2);
+        expect([stopped.timedOut, stopped.error]).toEqual([true, "Stopped after 0.2 s, the alloy-lsp.analyzer.timeoutSeconds limit."]);
+        configure(0);
+        const unlimited = await services.AlloyLsp.analysis.Analyzer.run(document, 2);
+        expect([unlimited.timedOut, unlimited.outcome]).toEqual([undefined, "no-counterexample"]);
+    });
+
     test("a model the Analyzer cannot parse reports its syntax error", { timeout: 120_000 }, async () => {
         await useJar(jar);
         const services = await alloyServices();

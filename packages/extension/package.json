@@ -38,10 +38,16 @@
                 "alloy-lsp.analyzer.timeoutSeconds": {
                     "type": "number",
                     "default": 300,
-                    "description": "Stop a run or check that takes longer than this."
+                    "minimum": 0,
+                    "description": "Seconds a run or check may take before it is stopped; 0 means no limit. Also set with the 'Alloy: Set Run Timeout' command."
                 }
             }
         },
+        "commands": [{
+            "command": "alloy-lsp.setTimeout",
+            "title": "Set Run Timeout",
+            "category": "Alloy"
+        }],
         "grammars": [{
             "language": "alloy-lsp",
             "scopeName": "source.alloy-lsp",

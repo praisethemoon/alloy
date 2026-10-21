@@ -15,6 +15,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }));
     const output = vscode.window.createOutputChannel('Alloy');
     context.subscriptions.push(output, vscode.commands.registerCommand('alloy-lsp.runCommand', (uri: string, index: number) => runCommand(uri, index, output)));
+    context.subscriptions.push(vscode.commands.registerCommand('alloy-lsp.setTimeout', changeRunTimeout));
+}
+
+/** Asks for a new solver timeout, in seconds (0 for none), and saves it for the workspace or, with no folder open, for the user. */
+async function changeRunTimeout(): Promise<void> {
+    const settings = vscode.workspace.getConfiguration('alloy-lsp.analyzer');
+    const current = settings.get<number>('timeoutSeconds', 300);
+    const answer = await vscode.window.showInputBox({
+        title: 'Alloy: run timeout',
+        prompt: 'Seconds a run or check may take before it is stopped; 0 means no limit.',
+        value: String(current),
+        validateInput: text => /^\d+$/.test(text.trim()) ? undefined : 'Enter a whole number of seconds, 0 or more.'
+    });
+    if (answer === undefined) return;
+    const target = vscode.workspace.workspaceFolders ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+    await settings.update('timeoutSeconds', Number(answer.trim()), target);
 }
 
 /** Runs one run/check through the language server and reports its outcome, offering to open what it found. */
@@ -29,7 +45,11 @@ async function runCommand(uri: string, index: number, output: vscode.OutputChann
     const summary = result.summary;
     output.appendLine(`${new Date().toLocaleTimeString()} ${vscode.Uri.parse(uri).fsPath} command ${index}${result.name ? ` (${result.kind} ${result.name})` : ''}: ${summary}`);
     if (result.error) {
-        void vscode.window.showErrorMessage(`Alloy: ${result.error}`);
+        const change = 'Change timeout';
+        const choice = await vscode.window.showErrorMessage(`Alloy: ${result.error}`, ...(result.timedOut ? [change] : []));
+        if (choice === change) {
+            await vscode.commands.executeCommand('alloy-lsp.setTimeout');
+        }
         return;
     }
     const open = result.solutionFile ? (result.outcome === 'counterexample' ? 'Open counterexample' : 'Open instance') : undefined;

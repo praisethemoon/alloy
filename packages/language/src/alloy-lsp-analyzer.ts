@@ -20,6 +20,8 @@ export interface CommandResult {
     solutionFile?: string;
     /** Why the command could not be run; set instead of an outcome. */
     error?: string;
+    /** Set when the solver was stopped by the timeout, so the editor can offer to change it. */
+    timedOut?: boolean;
 }
 
 /** Settings under `alloy-lsp.analyzer`. */
@@ -91,7 +93,11 @@ export class AlloyAnalyzer {
         }
         const out = await fs.mkdtemp(path.join(os.tmpdir(), 'alloy-run-'));
         const args = ['-Djava.awt.headless=true', '-jar', settings.jar, 'exec', '-c', String(index), '-f', '-q', '-t', 'table', '-o', out, file];
-        const { code, stderr } = await execute(settings.java || 'java', args, (settings.timeoutSeconds ?? 300) * 1000);
+        const timeoutSeconds = settings.timeoutSeconds ?? 300;
+        const { code, stderr, timedOut } = await execute(settings.java || 'java', args, timeoutSeconds * 1000);
+        if (timedOut) {
+            return { error: `Stopped after ${timeoutSeconds} s, the alloy-lsp.analyzer.timeoutSeconds limit.`, timedOut: true };
+        }
         if (code !== 0) {
             return { error: analyzerError(stderr) };
         }
@@ -129,14 +135,16 @@ function analyzerError(stderr: string): string {
     return line ?? 'The Analyzer failed without a message.';
 }
 
-function execute(command: string, args: string[], timeoutMs: number): Promise<{ code: number, stderr: string }> {
+/** Runs a process to completion; a timeout of 0 or less waits as long as it takes. */
+function execute(command: string, args: string[], timeoutMs: number): Promise<{ code: number, stderr: string, timedOut: boolean }> {
     return new Promise(resolve => {
         const child = spawn(command, args, { stdio: ['ignore', 'ignore', 'pipe'] });
         let stderr = '';
+        let timedOut = false;
         child.stderr.on('data', chunk => { stderr += chunk; });
-        const timer = setTimeout(() => child.kill(), timeoutMs);
-        child.on('error', error => { clearTimeout(timer); resolve({ code: -1, stderr: `Could not start ${command}: ${error.message}` }); });
-        child.on('close', code => { clearTimeout(timer); resolve({ code: code ?? -1, stderr: code === null ? `Stopped after ${timeoutMs / 1000} s.` : stderr }); });
+        const timer = timeoutMs > 0 ? setTimeout(() => { timedOut = true; child.kill(); }, timeoutMs) : undefined;
+        child.on('error', error => { clearTimeout(timer); resolve({ code: -1, stderr: `Could not start ${command}: ${error.message}`, timedOut: false }); });
+        child.on('close', code => { clearTimeout(timer); resolve({ code: code ?? -1, stderr, timedOut }); });
     });
 }
 
