@@ -46,9 +46,27 @@ const ctx = await esbuild.context({
     plugins
 });
 
+// The visualizer webview: React with baukasten-ui and Graphviz (WASM inlined), for the browser.
+// Its CSS imports are collected into out/webview/visualizer.css.
+const webview = await esbuild.context({
+    entryPoints: { visualizer: 'src/webview/main.tsx' },
+    outdir: 'out/webview',
+    bundle: true,
+    target: 'ES2022',
+    format: 'iife',
+    platform: 'browser',
+    jsx: 'automatic',
+    loader: { '.ts': 'ts', '.tsx': 'tsx' },
+    define: { 'process.env.NODE_ENV': JSON.stringify(minify ? 'production' : 'development') },
+    sourcemap: !minify,
+    minify,
+    plugins
+});
+
 if (watch) {
-    await ctx.watch();
+    await Promise.all([ctx.watch(), webview.watch()]);
 } else {
-    await ctx.rebuild();
+    await Promise.all([ctx.rebuild(), webview.rebuild()]);
     ctx.dispose();
+    webview.dispose();
 }

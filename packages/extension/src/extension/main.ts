@@ -1,8 +1,9 @@
 import type { LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
 import * as vscode from 'vscode';
-import type { CommandResult } from 'alloy-lsp-language';
+import { expandHome, type CommandResult, type SessionLaunch } from 'alloy-lsp-language';
 import * as path from 'node:path';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { VisualizerPanel } from './visualizer-panel.js';
 
 let client: LanguageClient;
 
@@ -16,6 +17,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const output = vscode.window.createOutputChannel('Alloy');
     context.subscriptions.push(output, vscode.commands.registerCommand('alloy-lsp.runCommand', (uri: string, index: number) => runCommand(uri, index, output)));
     context.subscriptions.push(vscode.commands.registerCommand('alloy-lsp.setTimeout', changeRunTimeout));
+    context.subscriptions.push(
+        vscode.commands.registerCommand('alloy-lsp.visualize', (uri: string, index: number) =>
+            VisualizerPanel.visualize(context.extensionUri, sessionLaunch(context), vscode.Uri.parse(uri).fsPath, index)),
+        vscode.commands.registerCommand('alloy-lsp.showLatestInstance', () => {
+            if (VisualizerPanel.latest) VisualizerPanel.latest.reveal();
+            else vscode.window.showInformationMessage('Alloy: no instance has been visualized yet.');
+        }),
+        vscode.commands.registerCommand('alloy-lsp.openInstanceXml', async () => {
+            const [file] = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'Alloy instance': ['xml'] }, title: 'Open an Alloy instance' }) ?? [];
+            if (file) await VisualizerPanel.openXml(context.extensionUri, file);
+        }));
+}
+
+/** How the visualizer starts its session: the configured java and jar, else the shipped jar, and the helper built beside it. */
+function sessionLaunch(context: vscode.ExtensionContext): SessionLaunch {
+    const settings = vscode.workspace.getConfiguration('alloy-lsp.analyzer');
+    return {
+        java: expandHome(settings.get<string>('java') || undefined),
+        jar: expandHome(settings.get<string>('jar') || undefined) ?? context.asAbsolutePath(path.join('alloy', 'alloy.jar')),
+        sessionJar: context.asAbsolutePath(path.join('alloy', 'alloy-session.jar'))
+    };
 }
 
 /** Asks for a new solver timeout, in seconds (0 for none), and saves it for the workspace or, with no folder open, for the user. */
@@ -52,11 +74,15 @@ async function runCommand(uri: string, index: number, output: vscode.OutputChann
         }
         return;
     }
-    const open = result.solutionFile ? (result.outcome === 'counterexample' ? 'Open counterexample' : 'Open instance') : undefined;
+    const found = result.outcome === 'instance' || result.outcome === 'counterexample';
+    const visualize = 'Visualize';
+    const open = result.solutionFile ? (result.outcome === 'counterexample' ? 'Open counterexample as text' : 'Open instance as text') : undefined;
     const message = `Alloy ${result.kind} ${result.name}: ${summary}`;
     const show = result.outcome === 'counterexample' ? vscode.window.showWarningMessage : vscode.window.showInformationMessage;
-    const choice = await show(message, ...(open ? [open] : []));
-    if (choice && result.solutionFile) {
+    const choice = await show(message, ...(found ? [visualize] : []), ...(open ? [open] : []));
+    if (choice === visualize) {
+        await vscode.commands.executeCommand('alloy-lsp.visualize', uri, index);
+    } else if (choice === open && result.solutionFile) {
         await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(result.solutionFile)), { preview: true });
     }
 }

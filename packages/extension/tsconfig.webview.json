@@ -1,0 +1,16 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "rootDir": "src",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "jsx": "react-jsx",
+        "types": [],
+        "tsBuildInfoFile": "tsconfig.webview.tsbuildinfo"
+    },
+    "include": [
+        "src/webview/**/*.ts",
+        "src/webview/**/*.tsx",
+        "src/visualizer/**/*.ts"
+    ]
+}

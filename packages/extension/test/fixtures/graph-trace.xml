@@ -1,0 +1,55 @@
+<alloy builddate="2025-01-09T08:17:18.350Z">
+
+<instance bitwidth="4" maxseq="3" mintrace="1" maxtrace="3" command="Run show for 3 but 3 steps" filename="/models/graph.als" tracelength="2" looplength="1">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/Node" ID="4" parentID="2">
+   <atom label="Node$0"/>
+   <atom label="Node$1"/>
+</sig>
+
+<field label="edges" ID="5" parentID="4" var="yes">
+   <tuple> <atom label="Node$1"/> <atom label="Node$0"/> </tuple>
+   <types> <type ID="4"/> <type ID="4"/> </types>
+</field>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+</instance>
+<instance bitwidth="4" maxseq="3" mintrace="1" maxtrace="3" command="Run show for 3 but 3 steps" filename="/models/graph.als" tracelength="2" looplength="1">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/Node" ID="4" parentID="2">
+   <atom label="Node$0"/>
+   <atom label="Node$1"/>
+</sig>
+
+<field label="edges" ID="5" parentID="4" var="yes">
+   <tuple> <atom label="Node$0"/> <atom label="Node$0"/> </tuple>
+   <tuple> <atom label="Node$0"/> <atom label="Node$1"/> </tuple>
+   <types> <type ID="4"/> <type ID="4"/> </types>
+</field>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+</instance>
+
+</alloy>
