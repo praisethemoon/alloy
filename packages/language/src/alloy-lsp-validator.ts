@@ -1,8 +1,8 @@
 import { AstUtils, GrammarUtils, type AstNode, type LangiumDocument, type ValidationAcceptor, type ValidationChecks } from 'langium';
 import {
-    isDeclName, isFunDecl, isPredDecl, isSigName,
-    type AlloyLspAstType, type Comprehension, type Decl, type DeclName, type FunDecl, type Open, type PredDecl,
-    type QuantifiedExpr, type SigDecl, type SigName, type Specification, type StringLiteral
+    isAssertDecl, isEnumDecl, isEnumMember, isModuleParam, isSigName,
+    type AlloyLspAstType, type Decl, type DeclName, type FunDecl, type Open, type PredDecl,
+    type SigDecl, type SigName, type Specification, type StringLiteral
 } from './generated/ast.js';
 import type { AlloyLspServices } from './alloy-lsp-module.js';
 import type { AlloyModuleResolver } from './alloy-lsp-modules.js';
@@ -20,10 +20,8 @@ export function registerValidationChecks(services: AlloyLspServices) {
         Specification: [validator.checkTypes, validator.checkDuplicateNames],
         SigDecl: [validator.checkSigQualifiers, validator.checkExtends, validator.checkFieldClashes],
         Decl: validator.checkVar,
-        QuantifiedExpr: validator.checkBinderNames,
-        Comprehension: validator.checkBinderNames,
-        FunDecl: validator.checkBinderNames,
-        PredDecl: validator.checkBinderNames,
+        FunDecl: validator.checkParameterNames,
+        PredDecl: validator.checkParameterNames,
         StringLiteral: validator.checkStringNotEmpty,
         SigName: validator.checkNameHasNoDollar,
         DeclName: validator.checkNameHasNoDollar,
@@ -69,14 +67,18 @@ export class AlloyLspValidator {
     /** One module-level name per declaration, except that preds and funs may overload each other. */
     checkDuplicateNames(spec: Specification, accept: ValidationAcceptor): void {
         const byName = new Map<string, AstNode[]>();
-        for (const node of moduleDeclarations(spec, true)) {
-            if (isDeclName(node) || !node.name) continue;
-            byName.set(node.name, [...byName.get(node.name) ?? [], node]);
+        const declarations: AstNode[] = [...spec.module?.params ?? [], ...moduleDeclarations(spec, true)];
+        for (const node of declarations) {
+            const namespace = namespaceOf(node);
+            const name = (node as { name?: string }).name;
+            if (!namespace || !name) continue;
+            const key = `${namespace} ${name}`;
+            byName.set(key, [...byName.get(key) ?? [], node]);
         }
-        for (const [name, nodes] of byName) {
-            if (nodes.length < 2 || nodes.every(n => isPredDecl(n) || isFunDecl(n))) continue;
+        for (const [key, nodes] of byName) {
+            const [namespace, name] = key.split(' ');
             for (const node of nodes.slice(1)) {
-                accept('error', `'${name}' is already declared in this module (line ${line(nodes[0])}).`, { node, property: 'name' });
+                accept('error', `'${name}' is already the name of ${namespace === 'sig' ? 'a sig or module parameter' : 'an assertion'} in this module (line ${line(nodes[0])}).`, { node, property: 'name' });
             }
         }
     }
@@ -147,13 +149,12 @@ export class AlloyLspValidator {
         }
     }
 
-    /** The variables one quantifier, comprehension, pred or fun declares have distinct names. */
-    checkBinderNames(binder: QuantifiedExpr | Comprehension | FunDecl | PredDecl, accept: ValidationAcceptor): void {
-        const decls: Decl[] = 'decls' in binder ? binder.decls : binder.params;
+    /** A pred's or fun's parameters have distinct names; quantified variables may repeat. */
+    checkParameterNames(callable: FunDecl | PredDecl, accept: ValidationAcceptor): void {
         const seen = new Map<string, DeclName>();
-        for (const name of decls.flatMap(d => d.names)) {
+        for (const name of callable.params.flatMap(d => d.names)) {
             if (seen.has(name.name)) {
-                accept('error', `'${name.name}' is declared twice here.`, { node: name, property: 'name' });
+                accept('error', `The parameter name '${name.name}' appears more than once.`, { node: name, property: 'name' });
             } else {
                 seen.set(name.name, name);
             }
@@ -179,6 +180,17 @@ export class AlloyLspValidator {
 function parentSig(sig: SigName): SigName | undefined {
     const target = sig.$container.extends?.ref?.ref;
     return isSigName(target) ? target : undefined;
+}
+
+/**
+ * Alloy keeps two namespaces in which a name may appear only once per module:
+ * sigs (with enums, their members and module parameters) and assertions.
+ * Preds, funs, facts and macros may share names.
+ */
+function namespaceOf(node: AstNode): 'sig' | 'assert' | undefined {
+    if (isSigName(node) || isEnumDecl(node) || isEnumMember(node) || isModuleParam(node)) return 'sig';
+    if (isAssertDecl(node)) return 'assert';
+    return undefined;
 }
 
 function line(node: AstNode): number {

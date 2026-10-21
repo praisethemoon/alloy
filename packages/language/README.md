@@ -22,3 +22,8 @@ If you selected the test option as well, then the following files will be presen
 - [test/linking.test.ts](test/linking.test.ts) - Unit tests checking linking.
 - [test/parsing.test.ts](test/parsing.test.ts) - Unit tests regarding parsing.
 - [test/validating.test.ts](test/validating.test.ts) - Unit tests regarding validation.
+
+## Tests
+
+- `npm test` runs the unit tests: parsing, linking, typing, LSP features and the Analyzer integration (whose jar-gated cases skip without a jar).
+- `npm run test:oracle` checks the test expectations against the real Alloy Analyzer: every syntax case, typing case and example in [`examples/`](../../examples) goes through `alloy.jar commands`, and its verdict must match ours. It needs Java and `ALLOY_JAR` (or the jar at `~/code/tools/alloy/alloy-6.2.0.jar`); the shared cases live in [test/cases](test/cases).

@@ -275,5 +275,6 @@ terminal PRED_TOTALORDER: /pred\/totalOrder(?![A-Za-z0-9_$"])/;
 // Java letters and digits, plus `"` after the first character. The curly
 // quotes U+2018/U+2019 are primes, not letters.
 terminal ID: /[A-Za-z_$\u00C0-\u2017\u201A-\uFFFF][A-Za-z0-9_$"\u00C0-\u2017\u201A-\uFFFF]*/;
-terminal NUMBER returns number: /0x([_]|[0-9A-Fa-f][0-9A-Fa-f])+|0b[01_]+|[0-9][0-9_]*/;
+// Only hex and binary numbers take `_`: in Alloy.lex, 1_000 is "a name starting with a number".
+terminal NUMBER returns number: /0x([_]|[0-9A-Fa-f][0-9A-Fa-f])+|0b[01_]+|[0-9]+/;
 terminal STRING: /"(\\.|[^"\\])*"/;

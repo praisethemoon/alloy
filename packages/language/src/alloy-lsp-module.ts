@@ -3,6 +3,7 @@ import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModul
 import { AlloyLspGeneratedModule, AlloyLspGeneratedSharedModule } from './generated/module.js';
 import { AlloyLspValidator, registerValidationChecks } from './alloy-lsp-validator.js';
 import { AlloyLspValueConverter } from './alloy-lsp-value-converter.js';
+import { AlloyTokenBuilder } from './alloy-lsp-token-builder.js';
 import { AlloyLinker } from './alloy-lsp-linker.js';
 import { AlloyModuleResolver } from './alloy-lsp-modules.js';
 import { AlloyScopeComputation, AlloyScopeProvider } from './alloy-lsp-scope.js';
@@ -52,7 +53,8 @@ export type AlloyLspServices = LangiumServices & AlloyLspAddedServices
  */
 export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & AlloyLspAddedServices> = {
     parser: {
-        ValueConverter: () => new AlloyLspValueConverter()
+        ValueConverter: () => new AlloyLspValueConverter(),
+        TokenBuilder: () => new AlloyTokenBuilder()
     },
     references: {
         ModuleResolver: (services) => new AlloyModuleResolver(services),

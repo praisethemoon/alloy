@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { isCommand, isFunDecl, isSigDecl, utilLibrary, type CommandCall, type SigDecl } from "alloy-lsp-language";
 import { parse, showDecl, show, syntaxErrors } from "./helpers.js";
+import { validSyntax } from "./cases/syntax-cases.js";
 
 describe("the Alloy util library", () => {
     const modules = Object.keys(utilLibrary).sort();
@@ -14,116 +15,6 @@ describe("the Alloy util library", () => {
         expect(syntaxErrors(document)).toEqual([]);
     });
 });
-
-// One case per production group of Alloy.cup, named after its nonterminal.
-const validSyntax: Array<[string, string]> = [
-    // Spec
-    ["module header", "module a/b/c"],
-    ["module with parameters", "module util/ordering[exactly elem, other]"],
-    ["open", "open util/ordering"],
-    ["private open with arguments and alias", "private open util/ordering[State, univ, Int, seq/Int] as so"],
-    ["open with empty arguments", "open m[]"],
-    ["enum", "enum Color { Red, Green, Blue }"],
-    ["private empty enum", "private enum E {}"],
-    ["anonymous fact", "fact { no none }"],
-    ["named fact", "fact acyclic { no iden & ^next }"],
-    ["fact labelled with a string", 'fact "no self loops" { no iden & next }'],
-    ["named and anonymous asserts", 'assert A { some univ } assert { no none } assert "s" {}'],
-    // Command, Scope, Typescope, TypeNumber, Expects
-    ["run a predicate", "run show"],
-    ["check with an overall scope", "check A for 3"],
-    ["run with but", "run show for 3 but 2 A, exactly 4 B, 5 Int, 4 int, 3 seq"],
-    ["run with type scopes only", "run show for 2 A, 3 univ, 1 String, 0 none"],
-    ["inline command block", "run { some univ } for 4 expect 1"],
-    ["named command block", "run nonEmpty { some univ } expect 0"],
-    ["labelled command", "pos: run show for 3"],
-    ["command naming a label and a target", "run myLabel show for 3"],
-    ["chained commands", "run a for 2 => check b for 3"],
-    ["step scopes", "run show for 3 but 1..10 steps"],
-    ["open-ended step scope", "run show for 3 but 1.. steps"],
-    ["exact ranges and increments", "run show for exactly 2..8:2 A, 3:1 B"],
-    ["qualified scope target", "run show for 2 this/A, 3 m/B"],
-    // Macro
-    ["macro with parenthesised parameters", "let m(a, b) { a = b }"],
-    ["macro with bracketed parameters", "private let m[a] = a + a"],
-    ["macro without parameters", "let m = univ"],
-    ["macro with empty parameters", "let m[] { none }"],
-    // Function, Predicate
-    ["fun with bracketed parameters", "fun f[x: A, y: B] : set A { x + y }"],
-    ["fun with parenthesised parameters", "fun f(x: A) : A { x }"],
-    ["fun without parameters", "private fun f : A -> B { A -> B }"],
-    ["receiver fun", "fun A.f[y: B] : B { this.r & y }"],
-    ["receiver fun on a builtin sig", "fun univ.f : univ { this }"],
-    ["pred", "pred p[x, y: A] { x = y }"],
-    ["pred without parameters", "pred p { }"],
-    ["receiver pred", "pred A.p { some this }"],
-    ["stray commas in parameters", "pred p[, x: A,, y: B,] {}"],
-    ["parameter declarations with =, disj and private", "pred p[disj a, b: A, c = d, private e: disj E] {}"],
-    // Sig, SigQual, SigIn, SigRef
-    ["empty sig", "sig A {}"],
-    ["several sigs at once", "sig A, B, C {}"],
-    ["qualified sig", "abstract lone sig A extends B {}"],
-    ["qualifiers in any order", "private one var sig A {}"],
-    ["some sig", "some sig A {}"],
-    ["subset sig of a union", "sig A in B + C + univ {}"],
-    ["sig defined by =", "sig A = B + C {}"],
-    ["extending a builtin", "sig A extends Int {}"],
-    ["fields", "sig A { f: B, g: lone C, h: set D, i: A -> lone B }"],
-    ["field forms", "sig A { var f: B, disj g, h: C, private i: disj D, j = k, var private disj l: E }"],
-    ["stray commas in fields", "sig A { , f: B,, g: C, }"],
-    ["signature fact", "sig A { f: B } { some f }"],
-    ["empty signature fact", "sig A {} {}"],
-    // Name
-    ["this/ and seq/ names", "fact { this/A in seq/Int + this/x/y }"],
-    // Expressions: atoms (BaseExpr)
-    ["numbers", "fact { 0 + 12 + 1_000 + 0x1F + 0x_FF + 0b1011 + -3 = 0 }"],
-    ["string", 'fact { "hello" in String }'],
-    ["constants", "fact { iden + univ + none + Int + String + steps + this in univ -> univ }"],
-    ["integer builtins", "fact { fun/min < fun/max and fun/next = fun/next }"],
-    ["@ name", "sig A { f: A } { @f = f }"],
-    ["parentheses", "fact { (a + b).c = d }"],
-    ["nested block", "fact { { a b } }"],
-    // Comprehension, Let, quantifiers (Bind)
-    ["comprehension", "fact { {x: A | some x.f} in A }"],
-    ["comprehension with block body", "fact { {x: A, y: B { x = y }} in A -> B }"],
-    ["comprehension without body", "fact { {x: A} = A }"],
-    ["let", "fact { let a = b, c = d | a = c }"],
-    ["let with block body", "fact { let a = b { a = b } }"],
-    ["quantifiers", "fact { all x: A | no y: B | lone z: C | one w: D | some v: E | v = w }"],
-    ["quantifier with disj and block", "fact { all disj x, y: A, z: B { x != y } }"],
-    ["sum quantifier", "fact { (sum x: A | #x) = 3 }"],
-    ["quantifier with = declarations", "fact { some x = A | x = A }"],
-    // Operators
-    ["logical keywords and symbols", "fact { a and b && c or d || e implies f => g iff h <=> i }"],
-    ["implies else", "fact { a => b else c }"],
-    ["negations", "fact { not a !b }"],
-    ["comparisons", "fact { a in b a = b a < b a > b a =< b a <= b a >= b }"],
-    ["negated comparisons", "fact { a !in b a != b a not in b a not = b a !< b a !> b a !=< b a !>= b }"],
-    ["multiplicity tests", "fact { no a some b lone c one d }"],
-    ["set and seq", "fun f : set A { A } fun g : seq A { none }"],
-    ["shifts", "fact { a << b >> c >>> d = e }"],
-    ["union, difference, override, intersection", "fact { a + b - c ++ d & e = f }"],
-    ["integer operators", "fact { a fun/add b fun/sub c fun/mul d fun/div e fun/rem f = g }"],
-    ["cardinality and casts", "fact { #a = sum b and int c = 1 and int[d] = 1 and e.int = 1 and sum[f] = 1 }"],
-    ["arrow multiplicities", "fact { a -> b a some -> one b a lone -> some b a one -> lone b a set -> set b a -> lone b }"],
-    ["restrictions", "fact { a <: b :> c = d }"],
-    ["joins", "fact { a.b.c = d::e }"],
-    ["box joins", "fact { a[b][c, d] = e[] }"],
-    ["closures and transpose", "fact { ~a + ^b + *c in d }"],
-    ["disj and totalOrder", "fact { disj[a, b] and pred/totalOrder[a, b, c] and a.disj and a.pred/totalOrder }"],
-    // Alloy 6
-    ["var sig and fields", "var sig A { var f: B }"],
-    ["primes", "fact { a' = b.c' and (a.b)' = d‘ and e’ = f }"],
-    ["future temporal operators", "fact { always a eventually b after c a until b a releases b }"],
-    ["past temporal operators", "fact { historically a once b before c a since b a triggered b }"],
-    ["sequencing", "fact { a ; b ; c }"],
-    ["sequencing inside a quantifier body", "fact { all x: A | a ; b }"],
-    // Lexer
-    ["all three comment styles", "// line\n-- line\n/* block */ /** doc */ sig A {}"],
-    ["comment at the end of the file without a newline", "sig A {} // done"],
-    ["identifiers with $, \" and unicode", 'sig A$1, B", Ünïcødé {}'],
-    ["keyword prefixes are identifiers", "sig funny, predicate, allx, Integer {} fun add[n: Int] : Int { n }"]
-];
 
 describe("valid Alloy syntax", () => {
     test.each(validSyntax)("%s", async (_name, text) => {
@@ -201,7 +92,7 @@ describe("declaration shapes", () => {
     });
 
     test("numbers in every base read as their values", async () => {
-        const [call] = await commandCalls("run p for 0x10 but 0b101 A, 1_000 B");
+        const [call] = await commandCalls("run p for 0x_10 but 0b1_01 A, 1000 B");
         expect([call.scope?.overall, ...(call.scope?.typeScopes.map(t => t.start) ?? [])]).toEqual([16, 5, 1000]);
     });
 });
