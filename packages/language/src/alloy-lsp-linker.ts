@@ -41,27 +41,52 @@ export class AlloyLinker extends DefaultLinker {
         // Not called, so a pred or fun with parameters can't be meant.
         const uncalled = candidates.filter(candidate => !parameterCount(this.loadAstNode(candidate)));
         const pool = uncalled.length > 0 ? uncalled : candidates;
-        return this.fieldByContext(refInfo.container, pool) ?? pool[0];
+        return this.fieldByContext(refInfo.container, pool) ?? this.byJoinType(refInfo.container, pool) ?? pool[0];
+    }
+
+    /**
+     * After a dot, the candidate of any kind whose first column meets the
+     * left side's last, as with table.next where both a field next of
+     * another sig and util/ordering's fun next are in scope.
+     */
+    protected byJoinType(node: AstNode, candidates: AstNodeDescription[]): AstNodeDescription | undefined {
+        const parent = node.$container;
+        if (candidates.length < 2 || !isNameExpr(node) || !isJoinExpr(parent) || parent.right !== node || this.joinsDeciding.has(parent)) return undefined;
+        this.joinsDeciding.add(parent);
+        try {
+            const left = this.types.typeOf(parent.left);
+            if (left.kind !== 'relation') return undefined;
+            const lastColumns = left.relations.map(r => r[r.length - 1]);
+            return candidates.find(candidate => {
+                const type = this.types.declarationType(this.loadAstNode(candidate)!);
+                return type.kind === 'relation' && type.relations.some(r => lastColumns.some(column => overlaps(column, r[0])));
+            });
+        } finally {
+            this.joinsDeciding.delete(parent);
+        }
     }
 
     /**
      * Among same-named fields of different sigs, the one the context types:
      * after a dot, the field whose sig meets the left side's last column;
      * before a dot, the field whose last column meets the right side's first;
-     * bare in a signature fact, first of all, the field of that sig or one it
-     * extends, and failing everything else, of a sig extending it.
+     * bare in a signature fact, the field of that sig or one it extends, which
+     * comes first except after a dot; and failing everything else, a field of
+     * a sig extending the fact's.
      */
     protected fieldByContext(node: AstNode, candidates: AstNodeDescription[]): AstNodeDescription | undefined {
         const fields = candidates
             .map(description => ({ description, owner: fieldOwner(this.loadAstNode(description)) }))
             .filter((f): f is { description: AstNodeDescription, owner: SigDecl } => f.owner !== undefined);
         if (fields.length < 2) return undefined;
-        // In a signature fact a bare name is this.f, so the fact's sig or an ancestor owns it.
-        const sig = signatureFactOf(node);
-        const own = sig && isNameExpr(node) ? fields.find(f => extendsOrIs(sig, f.owner)) : undefined;
-        if (own) return own.description;
         if (!isNameExpr(node) && !isAtNameExpr(node)) return undefined;
         const parent = node.$container;
+        // In a signature fact a bare name is this.f, so the fact's sig or an ancestor owns it,
+        // unless it follows a dot whose left side another sig's field fits.
+        const sig = signatureFactOf(node);
+        const own = sig && isNameExpr(node) ? fields.find(f => extendsOrIs(sig, f.owner)) : undefined;
+        const afterDot = isJoinExpr(parent) && parent.right === node;
+        if (own && !afterDot) return own.description;
         // In f.g with both overloaded, each side's choice types the other: the side asked second gets no say.
         if (isJoinExpr(parent) && !this.joinsDeciding.has(parent)) {
             this.joinsDeciding.add(parent);
@@ -72,6 +97,7 @@ export class AlloyLinker extends DefaultLinker {
                 this.joinsDeciding.delete(parent);
             }
         }
+        if (own) return own.description;
         // Otherwise, as with @f in a signature fact, a field of a sig extending the fact's.
         return sig ? fields.find(f => extendsOrIs(f.owner, sig))?.description : undefined;
     }
@@ -107,7 +133,7 @@ export class AlloyLinker extends DefaultLinker {
 
 /** How many arguments a name receives when it is called with brackets, or undefined when it is not called. */
 export function callArity(node: AstNode): number | undefined {
-    if (!isNameExpr(node)) {
+    if (!isNameExpr(node) && !isAtNameExpr(node)) {
         return undefined;
     }
     const parent = node.$container;

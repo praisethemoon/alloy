@@ -1,6 +1,6 @@
-import { URI, UriUtils, WorkspaceCache, type LangiumDocument, type LangiumDocuments } from 'langium';
+import { AstUtils, URI, UriUtils, WorkspaceCache, type LangiumDocument, type LangiumDocuments } from 'langium';
 import type { AlloyLspServices } from './alloy-lsp-module.js';
-import type { Specification } from './generated/ast.js';
+import { isUnaryExpr, type Specification } from './generated/ast.js';
 import { utilLibrary } from './builtin/util-library.js';
 
 /** Documents of the bundled util library live under this scheme. */
@@ -35,7 +35,7 @@ export class AlloyModuleResolver {
         this.importsCache = new WorkspaceCache(services.shared);
     }
 
-    /** Every module the document opens, in order, with the implicit util/integer last. */
+    /** Every module the document opens, in order, then the implicit util/integer and, for seq, util/sequniv. */
     imports(document: LangiumDocument<Specification>): ModuleImport[] {
         return this.importsCache.get(document.uri.toString(), () => {
             const spec = document.parseResult.value;
@@ -47,6 +47,11 @@ export class AlloyModuleResolver {
             }));
             if (this.modulePath(document) !== 'util/integer' && !imports.some(i => i.path === 'util/integer')) {
                 imports.push({ path: 'util/integer', alias: 'integer', private: false, document: this.resolve(document, 'util/integer') });
+            }
+            // A module using the seq keyword gets util/sequniv as seq, so s.elems and seq/elems resolve.
+            if (this.modulePath(document) !== 'util/sequniv' && !imports.some(i => i.path === 'util/sequniv')
+                && AstUtils.streamAst(spec).some(node => isUnaryExpr(node) && node.op === 'seq')) {
+                imports.push({ path: 'util/sequniv', alias: 'seq', private: false, document: this.resolve(document, 'util/sequniv') });
             }
             return imports;
         });

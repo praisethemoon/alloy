@@ -1,0 +1,1 @@
+fact myFact { some x }

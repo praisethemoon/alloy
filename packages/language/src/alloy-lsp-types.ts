@@ -2,7 +2,7 @@ import { AstUtils, WorkspaceCache, type AstNode, type LangiumDocument } from 'la
 import type { AlloyLspServices } from './alloy-lsp-module.js';
 import { parameterCount } from './alloy-lsp-linker.js';
 import {
-    isArrowExpr, isDeclName, isEnumDecl, isEnumMember, isFunDecl, isJoinExpr, isLetBinding,
+    isArrowExpr, isAtNameExpr, isDeclName, isEnumDecl, isEnumMember, isFunDecl, isJoinExpr, isLetBinding,
     isMacroDecl, isModuleParam, isNameExpr, isPredDecl, isSigDecl, isSigName, isUnaryExpr,
     type BoxJoinExpr, type Decl, type DeclName, type EnumDecl, type EnumMember, type Expr, type FunDecl, type JoinExpr,
     type PredDecl, type SigDecl, type SigName, type SigRef, type Specification
@@ -244,6 +244,8 @@ export class AlloyTypeSystem {
                 this.check(e.right, 'formula', issues);
                 return FORMULA;
             case 'Block':
+                // { e } is e itself, which may be an expression, as in `let x = … { x + 1 }`.
+                if (e.exprs.length === 1) return this.check(e.exprs[0], 'either', issues);
                 e.exprs.forEach(x => this.check(x, 'formula', issues));
                 return FORMULA;
             case 'LetExpr':
@@ -339,6 +341,11 @@ export class AlloyTypeSystem {
             }
         }
         return undefined;
+    }
+
+    /** The type a name denotes when it refers to this declaration, without implicit this. */
+    declarationType(target: AstNode): AlloyType {
+        return this.referenceType(target);
     }
 
     /** What a name denotes. Calls never get here: joins type them by their result. */
@@ -613,7 +620,7 @@ function boundType(type: AlloyType): AlloyType {
  * parameterless fun is a relation like any other: `next[x]` joins x with it.
  */
 function calleeOf(node: AstNode): FunDecl | PredDecl | undefined {
-    if (!isNameExpr(node)) return undefined;
+    if (!isNameExpr(node) && !isAtNameExpr(node)) return undefined;
     const target = node.ref.ref;
     return (isFunDecl(target) || isPredDecl(target)) && (parameterCount(target) ?? 0) > 0 ? target : undefined;
 }

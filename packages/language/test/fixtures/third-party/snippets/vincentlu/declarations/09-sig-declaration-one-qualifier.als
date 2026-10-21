@@ -1,0 +1,1 @@
+one sig Config {}

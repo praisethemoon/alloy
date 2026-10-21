@@ -1,0 +1,1 @@
+pred isValid { some x }

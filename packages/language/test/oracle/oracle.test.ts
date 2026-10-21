@@ -13,6 +13,10 @@ const examples = fs.readdirSync(examplesDir, { recursive: true, encoding: "utf-8
     .filter(file => file.endsWith(".als"))
     .sort();
 
+const thirdParty = path.resolve(__dirname, "../fixtures/third-party");
+const alsFiles = (folder: string) => fs.readdirSync(folder, { recursive: true, encoding: "utf-8" })
+    .filter(file => file.endsWith(".als")).sort();
+
 /** Cases where our grammar still disagrees with the Analyzer, and why. */
 const knownDisagreements = new Map<string, string>([]);
 
@@ -56,6 +60,20 @@ describe.skipIf(!oracleJar)("the Analyzer agrees", () => {
         test.each(examples)("%s", async file => {
             const verdict = await verdictOfFile(path.join(examplesDir, file));
             expect(verdict.kind, verdict.message).toBe("accepted");
+        });
+    });
+
+    describe.concurrent("third-party models are accepted", () => {
+        test.each(alsFiles(path.join(thirdParty, "models")))("%s", async file => {
+            const verdict = await verdictOfFile(path.join(thirdParty, "models", file));
+            expect(verdict.kind, verdict.message).toBe("accepted");
+        });
+    });
+
+    describe.concurrent("third-party grammar test cases parse", () => {
+        test.each(alsFiles(path.join(thirdParty, "snippets")))("%s", async file => {
+            const verdict = await verdictOfFile(path.join(thirdParty, "snippets", file));
+            expect(verdict.kind, verdict.message).not.toBe("parse-error");
         });
     });
 });

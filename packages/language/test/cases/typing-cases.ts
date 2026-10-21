@@ -80,5 +80,16 @@ export const typingCases: Array<[string, string, string | string[], string]> = [
     ["a name of a module opened through another", "open util/graph[A] sig A { r: A } fact { dom[r] }",
         "error: This must be a formula, but it is an expression of type univ.", "open util/graph[A] sig A { r: A } fact { acyclic[r, A] }"],
     ["a name of a module opened privately through another", "open util/natural fact { some first }",
-        "error: Could not resolve reference to Referable named 'first'.", "open util/natural fact { some natural/Natural }"]
+        "error: Could not resolve reference to Referable named 'first'.", "open util/natural fact { some natural/Natural }"],
+    ["sequence functions with the seq keyword", "sig A { s: seq A } fact { some A.s.elems.A }",
+        "error: A join needs a relation on at least one side, but both sides are sets (univ and A).", "sig A { s: seq A } fact { some A.s.elems }"],
+    ["a call of an @-named fun", "open util/ordering[A] sig A { f: A } { f in @nexts[this] -> A }",
+        "error: in needs operands of the same arity, but the left side has arity 1 and the right side 2.", "open util/ordering[A] sig A { f: A } { f in @nexts[this] }"],
+    ["another sig's field after a dot in a signature fact", "sig R {} sig P { realm: R } sig C { realm: R, ps: set P } { (ps).realm = ps -> ps }",
+        "error: = needs operands of the same arity, but the left side has arity 1 and the right side 2.", "sig R {} sig P { realm: R } sig C { realm: R, ps: set P } { (ps).realm = realm }"],
+    ["a block holding one integer expression", "fun f[n: Int] : Int { let d = n { d d in Int } }",
+        ["error: This must be a formula, but it is an expression of type Int.",
+            "error: This must be a set, relation or integer expression, but it is a formula."], "fun f[n: Int] : Int { let d = n { d > 0 => d else minus[0, d] } }"],
+    ["a module's fun beside a same-named field, after a dot", "open util/ordering[T] sig T {} sig P { next: P } fact { all t: T | t.next in T -> T }",
+        "error: in needs operands of the same arity, but the left side has arity 1 and the right side 2.", "open util/ordering[T] sig T {} sig P { next: P } fact { all t: T | t.next in T }"]
 ];

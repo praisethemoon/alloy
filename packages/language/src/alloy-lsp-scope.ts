@@ -6,7 +6,7 @@ import {
 import type { AlloyLspServices } from './alloy-lsp-module.js';
 import type { AlloyModuleResolver } from './alloy-lsp-modules.js';
 import {
-    AssertDecl, AtNameExpr, CommandCall, DeclName, EnumDecl, FunDecl, ModuleParam, PredDecl, SigName, SigRef, TypeScope,
+    AssertDecl, CommandCall, EnumDecl, FunDecl, ModuleParam, PredDecl, SigName, SigRef, TypeScope,
     isDecl, isDeclName, isLetBinding, isMacroParam, isSigDecl, type Decl, type Referable, type Specification
 } from './generated/ast.js';
 
@@ -70,8 +70,7 @@ export class AlloyScopeComputation extends DefaultScopeComputation {
 const allowedTargets: Record<string, ReadonlySet<string>> = {
     [`${SigRef.$type}:${SigRef.ref}`]: new Set([SigName.$type, ModuleParam.$type, EnumDecl.$type]),
     [`${TypeScope.$type}:${TypeScope.sig}`]: new Set([SigName.$type, ModuleParam.$type, EnumDecl.$type]),
-    [`${CommandCall.$type}:${CommandCall.target}`]: new Set([PredDecl.$type, AssertDecl.$type, FunDecl.$type]),
-    [`${AtNameExpr.$type}:${AtNameExpr.ref}`]: new Set([DeclName.$type])
+    [`${CommandCall.$type}:${CommandCall.target}`]: new Set([PredDecl.$type, AssertDecl.$type, FunDecl.$type])
 };
 
 /** Assertions are only named by commands. */
