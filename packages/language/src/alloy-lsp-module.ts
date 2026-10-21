@@ -6,6 +6,7 @@ import { AlloyLspValueConverter } from './alloy-lsp-value-converter.js';
 import { AlloyLinker } from './alloy-lsp-linker.js';
 import { AlloyModuleResolver } from './alloy-lsp-modules.js';
 import { AlloyScopeComputation, AlloyScopeProvider } from './alloy-lsp-scope.js';
+import { AlloyTypeSystem } from './alloy-lsp-types.js';
 import { AlloyWorkspaceManager } from './alloy-lsp-workspace.js';
 
 /**
@@ -14,6 +15,9 @@ import { AlloyWorkspaceManager } from './alloy-lsp-workspace.js';
 export type AlloyLspAddedServices = {
     references: {
         ModuleResolver: AlloyModuleResolver
+    },
+    typing: {
+        TypeSystem: AlloyTypeSystem
     },
     validation: {
         AlloyLspValidator: AlloyLspValidator
@@ -40,6 +44,9 @@ export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & A
         ScopeComputation: (services) => new AlloyScopeComputation(services),
         ScopeProvider: (services) => new AlloyScopeProvider(services),
         Linker: (services) => new AlloyLinker(services)
+    },
+    typing: {
+        TypeSystem: (services) => new AlloyTypeSystem(services)
     },
     validation: {
         AlloyLspValidator: (services) => new AlloyLspValidator(services)

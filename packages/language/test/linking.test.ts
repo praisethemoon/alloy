@@ -36,7 +36,7 @@ describe("the bundled util library", () => {
         const services = await alloyServices();
         const document = services.shared.workspace.LangiumDocuments.getDocument(utilLibraryUri(module))!;
         const diagnostics = await services.AlloyLsp.validation.DocumentValidator.validateDocument(document);
-        expect(diagnostics.filter(d => d.severity === 1).map(d => d.message)).toEqual([]);
+        expect(diagnostics.filter(d => d.severity === 1 || d.severity === 2).map(d => d.message)).toEqual([]);
     });
 });
 
@@ -109,7 +109,7 @@ describe("names inside one module", () => {
 
     test("this/ names and @ fields", async () => {
         const document = await parse(`
-            sig A { f: this/A } { @f = f }
+            sig A { f: this/A } { this.@f = f }
         `, "file:///linking/this.als");
         expect(linkErrors(document)).toEqual([]);
         expect(links(document)).toEqual([

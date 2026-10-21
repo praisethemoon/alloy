@@ -2,6 +2,7 @@ export * from './alloy-lsp-linker.js';
 export * from './alloy-lsp-module.js';
 export * from './alloy-lsp-modules.js';
 export * from './alloy-lsp-scope.js';
+export * from './alloy-lsp-types.js';
 export * from './alloy-lsp-validator.js';
 export * from './alloy-lsp-workspace.js';
 export * from './builtin/util-library.js';
