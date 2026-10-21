@@ -8,6 +8,12 @@ grammar AlloyLsp
 entry Specification:
     (module=ModuleDecl | opens+=Open | paragraphs+=Paragraph)*;
 
+// Everything a name in an expression, a sig reference or a command can
+// denote. Alloy keeps one namespace for all of them per module.
+type Referable =
+    SigName | DeclName | ModuleParam | EnumDecl | EnumMember | FunDecl | PredDecl
+    | AssertDecl | MacroDecl | MacroParam | LetBinding;
+
 // ---------------------------------------------------------------- modules
 
 ModuleDecl:
@@ -91,11 +97,11 @@ DeclName:
 Command:
     (label=ID ':')? calls+=CommandCall ('=>' calls+=CommandCall)*;
 
-// With a block, `name` labels the block; with `target`, `name` labels the
-// call of `target`; alone, `name` is what is run or checked.
+// `run p`, `run lbl p`, `run {…}` and `run lbl {…}`: an optional label,
+// then the predicate or assertion to run, or an inline block.
 CommandCall:
     kind=('run' | 'check')
-    (body=Block | name=QualifiedName (body=Block | target=QualifiedName)?)
+    name=QualifiedName? (body=Block | target=[Referable:QualifiedName])
     scope=Scope?
     ('expect' expect=NUMBER)?;
 
@@ -108,10 +114,7 @@ Scope:
 // `n`, `n..m`, open-ended `n..`, each optionally `:step`.
 TypeScope:
     exactly?='exactly'? start=NUMBER (range?='.' '.' end=NUMBER?)? (':' increment=NUMBER)?
-    target=ScopeTarget;
-
-ScopeTarget returns string:
-    QualifiedName | 'Int' | 'int' | 'seq' | 'univ' | 'String' | 'steps' | 'none';
+    (builtin=('Int' | 'int' | 'seq' | 'univ' | 'String' | 'steps' | 'none') | sig=[Referable:QualifiedName]);
 
 // ------------------------------------------------------------ expressions
 //
@@ -218,8 +221,9 @@ PrimaryExpr infers Expr:
     {infer NumberLiteral} negative?='-'? value=NUMBER
     | {infer StringLiteral} value=STRING
     | {infer ConstantExpr} value=('iden' | 'this' | FUN_CONST)
-    | {infer NameExpr} name=SigRefName
-    | {infer AtNameExpr} '@' name=QualifiedName
+    | {infer BuiltinSigExpr} name=BuiltinSig
+    | {infer NameExpr} ref=[Referable:QualifiedName]
+    | {infer AtNameExpr} '@' ref=[Referable:QualifiedName]
     | '(' Expr ')'
     | Block
     | Comprehension
@@ -246,10 +250,11 @@ QuantifiedExpr:
 // ------------------------------------------------------------------ names
 
 SigRef:
-    name=SigRefName;
+    builtin=BuiltinSig | ref=[Referable:QualifiedName];
 
-SigRefName returns string:
-    QualifiedName | 'univ' | 'String' | 'steps' | 'Int' | 'none' | 'seq' '/' 'Int';
+// Sigs Alloy defines itself; they are keywords, not declarations.
+BuiltinSig returns string:
+    'univ' | 'String' | 'steps' | 'Int' | 'none' | 'seq' '/' 'Int';
 
 QualifiedName returns string:
     ('this' '/' | 'seq' '/')? ID ('/' ID)*;

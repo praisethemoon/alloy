@@ -1,20 +1,16 @@
 import { describe, expect, test } from "vitest";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { isCommand, isFunDecl, isSigDecl, type CommandCall, type SigDecl } from "alloy-lsp-language";
+import { isCommand, isFunDecl, isSigDecl, utilLibrary, type CommandCall, type SigDecl } from "alloy-lsp-language";
 import { parse, showDecl, show, syntaxErrors } from "./helpers.js";
 
-const utilDir = path.join(__dirname, "fixtures", "util");
-
 describe("the Alloy util library", () => {
-    const files = fs.readdirSync(utilDir).filter(f => f.endsWith(".als")).sort();
+    const modules = Object.keys(utilLibrary).sort();
 
     test("has all 11 modules", () => {
-        expect(files).toHaveLength(11);
+        expect(modules).toHaveLength(11);
     });
 
-    test.each(files)("%s parses without errors", async file => {
-        const document = await parse(fs.readFileSync(path.join(utilDir, file), "utf-8"));
+    test.each(modules)("%s parses without errors", async module => {
+        const document = await parse(utilLibrary[module]);
         expect(syntaxErrors(document)).toEqual([]);
     });
 });
@@ -157,14 +153,14 @@ describe("declaration shapes", () => {
         const s = await sig("abstract var sig A, B extends C { f: lone D, disj g, h: set E }");
         expect([s.abstract, s.var, s.private, s.multiplicity]).toEqual([true, true, false, undefined]);
         expect(s.names.map(n => n.name)).toEqual(["A", "B"]);
-        expect(s.extends?.name).toBe("C");
+        expect(s.extends?.ref?.$refText).toBe("C");
         expect(s.fields.map(showDecl)).toEqual(["f: (lone D)", "disj g, h: (set E)"]);
     });
 
     test("a subset sig keeps every parent", async () => {
         const s = await sig("one sig A in B + C {}");
         expect(s.multiplicity).toBe("one");
-        expect(s.in.map(r => r.name)).toEqual(["B", "C"]);
+        expect(s.in.map(r => r.ref?.$refText)).toEqual(["B", "C"]);
     });
 
     test("a multiplicity right after ':' is not read as a quantifier", async () => {
@@ -177,7 +173,7 @@ describe("declaration shapes", () => {
         expect(syntaxErrors(document)).toEqual([]);
         const f = document.parseResult.value.paragraphs[0];
         if (!isFunDecl(f)) throw new Error("expected a fun");
-        expect([f.receiver?.name, f.name, f.params.map(showDecl), show(f.returnType)])
+        expect([f.receiver?.ref?.$refText, f.name, f.params.map(showDecl), show(f.returnType)])
             .toEqual(["A", "f", ["x: B"], "(set C)"]);
     });
 
@@ -188,15 +184,15 @@ describe("declaration shapes", () => {
             commandCalls("lbl: check A"),
             commandCalls("run lbl show")
         ]);
-        expect([byName.kind, byName.name, byName.scope?.overall]).toEqual(["run", "show", 3]);
+        expect([byName.kind, byName.name, byName.target?.$refText, byName.scope?.overall]).toEqual(["run", undefined, "show", 3]);
         expect([byBlock.kind, byBlock.name, byBlock.body?.$type]).toEqual(["check", "named", "Block"]);
         expect((labelled.$container as { label?: string }).label).toBe("lbl");
-        expect([labelAndTarget.name, labelAndTarget.target]).toEqual(["lbl", "show"]);
+        expect([labelAndTarget.name, labelAndTarget.target?.$refText]).toEqual(["lbl", "show"]);
     });
 
     test("type scopes keep exactly, ranges, increments and targets", async () => {
         const [call] = await commandCalls("run p for 3 but exactly 2..8:2 A, 1.. steps, 5 Int");
-        expect(call.scope?.typeScopes.map(t => [t.exactly, t.start, t.range, t.end, t.increment, t.target]))
+        expect(call.scope?.typeScopes.map(t => [t.exactly, t.start, t.range, t.end, t.increment, t.builtin ?? t.sig?.$refText]))
             .toEqual([
                 [true, 2, true, 8, 2, "A"],
                 [false, 1, true, undefined, undefined, "steps"],

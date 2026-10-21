@@ -16,6 +16,10 @@ export async function extractDocument(fileName: string, services: LangiumCoreSer
         process.exit(1);
     }
 
+    // The model's folder is the workspace, so its sibling modules and the
+    // bundled util library are there for `open` to find.
+    const folder = URI.file(path.dirname(path.resolve(fileName)));
+    await services.shared.workspace.WorkspaceManager.initializeWorkspace([{ name: path.basename(folder.fsPath), uri: folder.toString() }]);
     const document = await services.shared.workspace.LangiumDocuments.getOrCreateDocument(URI.file(path.resolve(fileName)));
     await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
 

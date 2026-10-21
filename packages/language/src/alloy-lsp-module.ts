@@ -1,13 +1,20 @@
 import { type Module, inject } from 'langium';
-import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices } from 'langium/lsp';
+import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices, type PartialLangiumSharedServices } from 'langium/lsp';
 import { AlloyLspGeneratedModule, AlloyLspGeneratedSharedModule } from './generated/module.js';
 import { AlloyLspValidator, registerValidationChecks } from './alloy-lsp-validator.js';
 import { AlloyLspValueConverter } from './alloy-lsp-value-converter.js';
+import { AlloyLinker } from './alloy-lsp-linker.js';
+import { AlloyModuleResolver } from './alloy-lsp-modules.js';
+import { AlloyScopeComputation, AlloyScopeProvider } from './alloy-lsp-scope.js';
+import { AlloyWorkspaceManager } from './alloy-lsp-workspace.js';
 
 /**
  * Declaration of custom services - add your own service classes here.
  */
 export type AlloyLspAddedServices = {
+    references: {
+        ModuleResolver: AlloyModuleResolver
+    },
     validation: {
         AlloyLspValidator: AlloyLspValidator
     }
@@ -28,8 +35,21 @@ export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & A
     parser: {
         ValueConverter: () => new AlloyLspValueConverter()
     },
+    references: {
+        ModuleResolver: (services) => new AlloyModuleResolver(services),
+        ScopeComputation: (services) => new AlloyScopeComputation(services),
+        ScopeProvider: (services) => new AlloyScopeProvider(services),
+        Linker: (services) => new AlloyLinker(services)
+    },
     validation: {
-        AlloyLspValidator: () => new AlloyLspValidator()
+        AlloyLspValidator: (services) => new AlloyLspValidator(services)
+    }
+};
+
+/** Shared services: the workspace manager also loads the bundled util library. */
+export const AlloyLspSharedModule: Module<LangiumSharedServices, PartialLangiumSharedServices> = {
+    workspace: {
+        WorkspaceManager: (services) => new AlloyWorkspaceManager(services)
     }
 };
 
@@ -54,7 +74,8 @@ export function createAlloyLspServices(context: DefaultSharedModuleContext): {
 } {
     const shared = inject(
         createDefaultSharedModule(context),
-        AlloyLspGeneratedSharedModule
+        AlloyLspGeneratedSharedModule,
+        AlloyLspSharedModule
     );
     const AlloyLsp = inject(
         createDefaultModule({ shared }),

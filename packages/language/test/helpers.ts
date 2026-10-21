@@ -6,8 +6,18 @@ import { createAlloyLspServices, isFactDecl } from "alloy-lsp-language";
 const services = createAlloyLspServices(EmptyFileSystem);
 const parseDocument = parseHelper<Specification>(services.AlloyLsp);
 
-export async function parse(text: string): Promise<LangiumDocument<Specification>> {
-    return parseDocument(text, { validation: true });
+let workspace: Promise<void> | undefined;
+
+/** The shared services, with the bundled util library loaded into their workspace. */
+export async function alloyServices(): Promise<typeof services> {
+    workspace ??= services.shared.workspace.WorkspaceManager.initializeWorkspace([]);
+    await workspace;
+    return services;
+}
+
+export async function parse(text: string, documentUri?: string): Promise<LangiumDocument<Specification>> {
+    await alloyServices();
+    return parseDocument(text, { validation: true, documentUri });
 }
 
 const syntaxCodes: unknown[] = [DocumentValidator.LexingError, DocumentValidator.ParsingError];
@@ -50,8 +60,9 @@ export function show(e: Expr): string {
         case "BoxJoinExpr": return `${show(e.target)}[${e.args.map(show).join(", ")}]`;
         case "BuiltinCall": return `${e.fn}[${e.args.map(show).join(", ")}]`;
         case "BuiltinRef": return e.fn;
-        case "NameExpr": return e.name;
-        case "AtNameExpr": return `@${e.name}`;
+        case "BuiltinSigExpr": return e.name;
+        case "NameExpr": return e.ref.$refText;
+        case "AtNameExpr": return `@${e.ref.$refText}`;
         case "ConstantExpr": return e.value;
         case "NumberLiteral": return `${e.negative ? "-" : ""}${e.value}`;
         case "StringLiteral": return e.value;
