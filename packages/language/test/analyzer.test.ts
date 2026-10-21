@@ -4,10 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { expandHome } from "alloy-lsp-language";
 import { alloyServices, parse } from "./helpers.js";
-
-/** The Alloy jar to test against: ALLOY_JAR, else a known local install; these tests skip without one. */
-const jar = [process.env.ALLOY_JAR, path.join(os.homedir(), "code/tools/alloy/alloy-6.2.0.jar")]
-    .find((candidate): candidate is string => !!candidate && fs.existsSync(candidate));
+import { testJar as jar } from "./alloy-jar.js";
 
 const model = `sig Node { next: lone Node }
 pred cycle { some n: Node | n in n.^next }
@@ -41,19 +38,40 @@ describe("paths in settings", () => {
     });
 });
 
+/** Runs `body` with the analyzer's shipped jar set to `shipped`, then puts the old one back. */
+async function withShippedJar(shipped: string | undefined, body: () => Promise<void>): Promise<void> {
+    const analyzer = (await alloyServices()).AlloyLsp.analysis.Analyzer;
+    const saved = analyzer.bundledJar;
+    analyzer.bundledJar = shipped;
+    try {
+        await body();
+    } finally {
+        analyzer.bundledJar = saved;
+    }
+}
+
 describe("without a jar", () => {
-    test("running explains how to configure one", async () => {
-        const saved = process.env.ALLOY_JAR;
-        delete process.env.ALLOY_JAR;
-        try {
+    test("with none shipped and none set, running says to set one", async () => {
+        await withShippedJar(undefined, async () => {
             await useJar(undefined);
             const services = await alloyServices();
             const { document } = await modelOnDisk(model);
             const result = await services.AlloyLsp.analysis.Analyzer.run(document, 0);
-            expect(result.error).toBe("No Alloy jar configured: set alloy-lsp.analyzer.jar (or ALLOY_JAR) to the Alloy 6 jar.");
-        } finally {
-            if (saved !== undefined) process.env.ALLOY_JAR = saved;
-        }
+            expect(result.error).toBe("No Alloy jar: this editor ships none, so set alloy-lsp.analyzer.jar to an Alloy 6 jar.");
+        });
+    });
+
+    test("a missing shipped jar says to rebuild, a missing set jar to check the setting", async () => {
+        const services = await alloyServices();
+        const { document } = await modelOnDisk(model);
+        await withShippedJar("/nonexistent/shipped/alloy.jar", async () => {
+            await useJar(undefined);
+            expect((await services.AlloyLsp.analysis.Analyzer.run(document, 0)).error).toBe(
+                "The shipped Alloy jar /nonexistent/shipped/alloy.jar is missing; rebuild the extension (npm run fetch:alloy) or set alloy-lsp.analyzer.jar.");
+            await useJar("/nonexistent/set/alloy.jar");
+            expect((await services.AlloyLsp.analysis.Analyzer.run(document, 0)).error).toBe(
+                "The Alloy jar /nonexistent/set/alloy.jar does not exist; check alloy-lsp.analyzer.jar.");
+        });
     });
 
     test("every command gets a lens before anything has run", async () => {
@@ -111,6 +129,24 @@ describe.skipIf(!jar)("with the Alloy jar", () => {
         configure(0);
         const unlimited = await services.AlloyLsp.analysis.Analyzer.run(document, 2);
         expect([unlimited.timedOut, unlimited.outcome]).toEqual([undefined, "no-counterexample"]);
+    });
+
+    test("an empty jar setting runs the shipped jar", { timeout: 120_000 }, async () => {
+        await withShippedJar(jar, async () => {
+            await useJar(undefined);
+            const services = await alloyServices();
+            const { document } = await modelOnDisk(model);
+            expect((await services.AlloyLsp.analysis.Analyzer.run(document, 2)).outcome).toBe("no-counterexample");
+        });
+    });
+
+    test("a jar setting wins over the shipped jar", { timeout: 120_000 }, async () => {
+        await withShippedJar("/nonexistent/shipped/alloy.jar", async () => {
+            await useJar(jar);
+            const services = await alloyServices();
+            const { document } = await modelOnDisk(model);
+            expect((await services.AlloyLsp.analysis.Analyzer.run(document, 2)).outcome).toBe("no-counterexample");
+        });
     });
 
     test("a model the Analyzer cannot parse reports its syntax error", { timeout: 120_000 }, async () => {

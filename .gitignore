@@ -12,3 +12,5 @@ syntaxes/
 .claude/settings.local.json
 # The AlloyTools model corpus, fetched by `npm run corpus:fetch`
 packages/language/test/corpus/models/
+# The Alloy jar the extension ships, fetched by packages/extension/scripts/fetch-alloy.mjs
+packages/extension/alloy/

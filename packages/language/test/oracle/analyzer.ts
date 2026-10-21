@@ -2,10 +2,10 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { testJar } from "../alloy-jar.js";
 
-/** The Alloy jar to compare against: ALLOY_JAR, else a known local install; the oracle suite skips without one. */
-export const oracleJar = [process.env.ALLOY_JAR, path.join(os.homedir(), "code/tools/alloy/alloy-6.2.0.jar")]
-    .find((candidate): candidate is string => !!candidate && fs.existsSync(candidate));
+/** The Alloy jar to compare against (see testJar); the oracle suite skips without one. */
+export const oracleJar = testJar;
 
 /**
  * What the Analyzer made of a model. It reports many checks made after

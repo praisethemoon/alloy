@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { URI } from 'langium';
 import { startLanguageServer } from 'langium/lsp';
 import { NodeFileSystem } from 'langium/node';
@@ -9,6 +10,9 @@ const connection = createConnection(ProposedFeatures.all);
 
 // Inject the shared services and language-specific services
 const { shared, AlloyLsp } = createAlloyLspServices({ connection, ...NodeFileSystem });
+
+// The jar this extension ships, from out/language/ up to alloy/; used when alloy-lsp.analyzer.jar is empty.
+AlloyLsp.analysis.Analyzer.bundledJar = path.resolve(__dirname, '../../alloy/alloy.jar');
 
 // The bundled util library has no files on disk; the client asks for a module's text to show it.
 connection.onRequest('alloy/utilModule', (uri: string) =>

@@ -28,7 +28,7 @@
                 "alloy-lsp.analyzer.jar": {
                     "type": "string",
                     "default": "",
-                    "description": "Path to the Alloy 6 jar used to run commands. Falls back to the ALLOY_JAR environment variable."
+                    "description": "Path to an Alloy 6 jar to run commands with instead of the one this extension ships (Alloy 6.2.0). Leave empty to use the shipped jar."
                 },
                 "alloy-lsp.analyzer.java": {
                     "type": "string",
@@ -62,7 +62,8 @@
         "clean": "shx rm -fr *.tsbuildinfo out syntaxes",
         "vscode:prepublish": "npm run build",
         "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/alloy-lsp.tmLanguage.json ./syntaxes/alloy-lsp.tmLanguage.json",
-        "build": "npm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
+        "fetch:alloy": "node scripts/fetch-alloy.mjs",
+        "build": "npm run fetch:alloy && npm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
         "build:clean": "npm run clean && npm run build",
         "watch": "npm run build:prepare && concurrently -n tsc,esbuild -c blue,yellow \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\""
     },

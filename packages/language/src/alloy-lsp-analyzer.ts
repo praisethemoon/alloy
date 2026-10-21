@@ -56,6 +56,8 @@ export class AlloyAnalyzer {
 
     protected readonly configuration: ConfigurationProvider;
     protected readonly results = new Map<string, Map<number, CommandResult>>();
+    /** The jar shipped with the editor extension, used when `alloy-lsp.analyzer.jar` is empty. */
+    bundledJar?: string;
 
     constructor(services: AlloyLspServices) {
         this.configuration = services.shared.workspace.ConfigurationProvider;
@@ -70,7 +72,7 @@ export class AlloyAnalyzer {
         const configured = (await this.configuration.getConfiguration('alloy-lsp', 'analyzer') ?? {}) as AnalyzerSettings;
         return {
             ...configured,
-            jar: expandHome(configured.jar || process.env.ALLOY_JAR || undefined),
+            jar: expandHome(configured.jar || undefined) ?? this.bundledJar,
             java: expandHome(configured.java || undefined)
         };
     }
@@ -89,7 +91,16 @@ export class AlloyAnalyzer {
     async runFile(file: string, index: number): Promise<CommandResult> {
         const settings = await this.settings();
         if (!settings.jar) {
-            return { error: 'No Alloy jar configured: set alloy-lsp.analyzer.jar (or ALLOY_JAR) to the Alloy 6 jar.' };
+            return { error: 'No Alloy jar: this editor ships none, so set alloy-lsp.analyzer.jar to an Alloy 6 jar.' };
+        }
+        try {
+            await fs.access(settings.jar);
+        } catch {
+            return {
+                error: settings.jar === this.bundledJar
+                    ? `The shipped Alloy jar ${settings.jar} is missing; rebuild the extension (npm run fetch:alloy) or set alloy-lsp.analyzer.jar.`
+                    : `The Alloy jar ${settings.jar} does not exist; check alloy-lsp.analyzer.jar.`
+            };
         }
         const out = await fs.mkdtemp(path.join(os.tmpdir(), 'alloy-run-'));
         const args = ['-Djava.awt.headless=true', '-jar', settings.jar, 'exec', '-c', String(index), '-f', '-q', '-t', 'table', '-o', out, file];

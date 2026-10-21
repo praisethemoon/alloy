@@ -1,6 +1,6 @@
 /*
  * The Analyzer oracle: our test expectations checked against the real Alloy jar.
- * Run with `npm run test:oracle`; it needs Java and ALLOY_JAR (or the jar at its known local path).
+ * Run with `npm run test:oracle`; it needs Java and the jar the extension ships (fetched by its build), or ALLOY_JAR.
  */
 import { defineConfig } from 'vitest/config';
 
