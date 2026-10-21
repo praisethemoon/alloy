@@ -77,7 +77,6 @@ export const validSyntax: Array<[string, string]> = [
     ["quantifiers", "fact { all x: A | no y: B | lone z: C | one w: D | some v: E | v = w }"],
     ["quantifier with disj and block", "fact { all disj x, y: A, z: B { x != y } }"],
     ["sum quantifier", "fact { (sum x: A | #x) = 3 }"],
-    ["quantifier with = declarations", "fact { some x = A | x = A }"],
     // Operators
     ["logical keywords and symbols", "fact { a and b && c or d || e implies f => g iff h <=> i }"],
     ["implies else", "fact { a => b else c }"],
@@ -158,6 +157,8 @@ export const invalidSyntax: Array<[string, string]> = [
     ["double arrow", "fact { a -> -> b }"],
     ["quantifier without a bound", "fact { all x | p }"],
     ["quantifier without a body", "fact { all x: A }"],
+    ["quantifier declaration with =", "fact { some x = A | x = A }"],
+    ["comprehension declaration with =", "fact { some {x = A | some x} }"],
     ["let without a value", "fact { let x | x }"],
     ["unbalanced parenthesis", "fact { (a + b }"],
     ["unclosed box join", "fact { a[b }"],

@@ -88,6 +88,14 @@ Decl:
     names+=DeclName (',' names+=DeclName)*
     (':' | defines?='=') disjType?='disj'? type=Expr;
 
+// The variables of a quantifier or comprehension always take ':'. CompFilter
+// only makes a quantifier when names are followed by ':', so the Analyzer
+// reads `some x = e` as a multiplicity test, and comprehensions use Declz.
+BoundDecl infers Decl:
+    var?='var'? private?='private'? disj?='disj'?
+    names+=DeclName (',' names+=DeclName)*
+    ':' disjType?='disj'? type=Expr;
+
 DeclName:
     name=ID;
 
@@ -234,7 +242,7 @@ Block:
     {infer Block} '{' exprs+=Expr* '}';
 
 Comprehension:
-    '{' decls+=Decl (',' decls+=Decl)* ('|' body=Expr | body=Block)? '}';
+    '{' decls+=BoundDecl (',' decls+=BoundDecl)* ('|' body=Expr | body=Block)? '}';
 
 LetExpr:
     'let' bindings+=LetBinding (',' bindings+=LetBinding)* ('|' body=Expr | body=Block);
@@ -244,7 +252,7 @@ LetBinding:
 
 QuantifiedExpr:
     quantifier=('all' | 'no' | 'some' | 'lone' | 'one' | 'sum')
-    decls+=Decl (',' decls+=Decl)*
+    decls+=BoundDecl (',' decls+=BoundDecl)*
     ('|' body=Expr | body=Block);
 
 // ------------------------------------------------------------------ names

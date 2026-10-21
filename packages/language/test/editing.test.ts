@@ -202,12 +202,12 @@ describe("quick fixes", () => {
 });
 
 describe("inlay hints", () => {
-    test("show the types of let bindings and =-declared names, and can be turned off", async () => {
+    test("show the types of let bindings, and can be turned off", async () => {
         const services = await alloyServices();
-        const document = await parse("sig A { r: A }\nfact { let x = A.r | some x }\nfact { some y = A | some y }", nextUri());
+        const document = await parse("sig A { r: A }\nfact { let x = A.r | some x }\nfact { let y = A, z = A -> A | some y.z }", nextUri());
         const params = { textDocument: { uri: document.uri.toString() }, range: { start: { line: 0, character: 0 }, end: { line: 3, character: 0 } } };
         const hints = await services.AlloyLsp.lsp.InlayHintProvider!.getInlayHints(document, params);
-        expect(hints?.map(h => `${h.position.line + 1}:${h.position.character + 1}${h.label}`)).toEqual(["2:13: A", "3:14: A"]);
+        expect(hints?.map(h => `${h.position.line + 1}:${h.position.character + 1}${h.label}`)).toEqual(["2:13: A", "3:13: A", "3:20: A->A"]);
         services.shared.workspace.ConfigurationProvider.updateConfiguration({ settings: { "alloy-lsp": { inlayHints: { enabled: false } } } });
         expect(await services.AlloyLsp.lsp.InlayHintProvider!.getInlayHints(document, params)).toEqual([]);
         services.shared.workspace.ConfigurationProvider.updateConfiguration({ settings: { "alloy-lsp": { inlayHints: { enabled: true } } } });

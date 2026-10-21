@@ -14,9 +14,7 @@ const examples = fs.readdirSync(examplesDir, { recursive: true, encoding: "utf-8
     .sort();
 
 /** Cases where our grammar still disagrees with the Analyzer, and why. */
-const knownDisagreements = new Map([
-    ["quantifier with = declarations", "CompFilter only makes a quantifier when names are followed by ':', so the Analyzer reads some x = A as a multiplicity test"]
-]);
+const knownDisagreements = new Map<string, string>([]);
 
 describe.skipIf(!oracleJar)("the Analyzer agrees", () => {
 
@@ -28,7 +26,10 @@ describe.skipIf(!oracleJar)("the Analyzer agrees", () => {
         };
         test.each(validSyntax.filter(([name]) => !knownDisagreements.has(name)))("%s", parses);
         // Expected to fail while our grammar still accepts these; once it agrees, drop the entry.
-        test.fails.each(validSyntax.filter(([name]) => knownDisagreements.has(name)))("known disagreement: %s", parses);
+        const known = validSyntax.filter(([name]) => knownDisagreements.has(name));
+        if (known.length > 0) {
+            test.fails.each(known)("known disagreement: %s", parses);
+        }
     });
 
     describe.concurrent("invalid-syntax cases are parse errors", () => {
