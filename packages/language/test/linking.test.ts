@@ -246,6 +246,14 @@ describe("names across modules", () => {
         expect(links(document)).toEqual(["W -> SigName W @ w.als", "Z -> SigName Z @ z.als"]);
     });
 
+    test("a workspace module that only declares a util path does not shadow the library", async () => {
+        await parse("module util/relation\npred acyclic {}", "file:///elsewhere/copy.als");
+        const document = await parse("open util/relation\nsig A { r: A }\nfact { relation/acyclic[r, A] }", "file:///linking/shadowing.als");
+        expect(linkErrors(document)).toEqual([]);
+        const target = links(document).find(l => l.startsWith("relation/acyclic"));
+        expect(target).toBe("relation/acyclic -> PredDecl acyclic @ relation.als");
+    });
+
     test("an open that names no module is an error", async () => {
         const document = await parse("open nowhere/to/be/found", "file:///linking/missing.als");
         expect(linkErrors(document)).toEqual([

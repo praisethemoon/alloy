@@ -11,6 +11,12 @@ import { AlloyCompletionProvider } from './alloy-lsp-completion.js';
 import { AlloyDefinitionProvider } from './alloy-lsp-definition.js';
 import { AlloyHoverProvider } from './alloy-lsp-hover.js';
 import { AlloyDocumentSymbolProvider, AlloyNodeKindProvider } from './alloy-lsp-symbols.js';
+import { AlloyCodeActionProvider } from './alloy-lsp-code-actions.js';
+import { AlloyFormatter } from './alloy-lsp-formatter.js';
+import { AlloyInlayHintProvider } from './alloy-lsp-inlay-hints.js';
+import { AlloyRenameProvider } from './alloy-lsp-rename.js';
+import { AlloySemanticTokenProvider } from './alloy-lsp-semantic.js';
+import { AlloySignatureHelpProvider } from './alloy-lsp-signature.js';
 import { AlloyWorkspaceManager } from './alloy-lsp-workspace.js';
 
 /**
@@ -56,7 +62,13 @@ export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & A
         CompletionProvider: (services) => new AlloyCompletionProvider(services),
         DefinitionProvider: (services) => new AlloyDefinitionProvider(services),
         DocumentSymbolProvider: () => new AlloyDocumentSymbolProvider(),
-        HoverProvider: (services) => new AlloyHoverProvider(services)
+        HoverProvider: (services) => new AlloyHoverProvider(services),
+        CodeActionProvider: (services) => new AlloyCodeActionProvider(services),
+        Formatter: () => new AlloyFormatter(),
+        InlayHintProvider: (services) => new AlloyInlayHintProvider(services),
+        RenameProvider: (services) => new AlloyRenameProvider(services),
+        SemanticTokenProvider: (services) => new AlloySemanticTokenProvider(services),
+        SignatureHelp: () => new AlloySignatureHelpProvider()
     },
     validation: {
         AlloyLspValidator: (services) => new AlloyLspValidator(services)

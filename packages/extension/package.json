@@ -17,6 +17,16 @@
             "extensions": [".als"],
             "configuration": "./language-configuration.json"
         }],
+        "configuration": {
+            "title": "Alloy",
+            "properties": {
+                "alloy-lsp.inlayHints.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show the inferred types of let bindings and of names declared with = as inlay hints."
+                }
+            }
+        },
         "grammars": [{
             "language": "alloy-lsp",
             "scopeName": "source.alloy-lsp",

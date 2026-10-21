@@ -20,8 +20,8 @@ export interface ModuleImport {
 
 /**
  * Finds the documents that `open` statements name, the way the Analyzer does:
- * a file relative to the importing module's root first, then any workspace
- * module declaring that path, then the bundled util library.
+ * a file relative to the importing module's root first, then the bundled
+ * util library, then any workspace module declaring that path.
  */
 export class AlloyModuleResolver {
 
@@ -60,16 +60,13 @@ export class AlloyModuleResolver {
         if (this.documents.hasDocument(relative)) {
             return this.documents.getDocument(relative) as LangiumDocument<Specification>;
         }
-        const declared = this.documents.all.find(doc =>
-            doc.uri.scheme !== UTIL_LIBRARY_SCHEME
-            && (doc.parseResult.value as Specification).module?.name === path);
-        if (declared) {
-            return declared as LangiumDocument<Specification>;
-        }
         if (path in utilLibrary) {
             return this.documents.getDocument(utilLibraryUri(path)) as LangiumDocument<Specification> | undefined;
         }
-        return undefined;
+        const declared = this.documents.all.find(doc =>
+            doc.uri.scheme !== UTIL_LIBRARY_SCHEME
+            && (doc.parseResult.value as Specification).module?.name === path);
+        return declared as LangiumDocument<Specification> | undefined;
     }
 
     /**
