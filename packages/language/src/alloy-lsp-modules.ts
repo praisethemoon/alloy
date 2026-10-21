@@ -15,6 +15,8 @@ export interface ModuleImport {
     path: string;
     /** The prefix names from this module take: the `as` alias, else the path's last segment. */
     alias: string;
+    /** `private open`: the module's names are not passed on to modules opening this one. */
+    private: boolean;
     document: LangiumDocument<Specification> | undefined;
 }
 
@@ -40,10 +42,11 @@ export class AlloyModuleResolver {
             const imports: ModuleImport[] = spec.opens.map(open => ({
                 path: open.path,
                 alias: open.alias ?? lastSegment(open.path),
+                private: open.private,
                 document: this.resolve(document, open.path)
             }));
             if (this.modulePath(document) !== 'util/integer' && !imports.some(i => i.path === 'util/integer')) {
-                imports.push({ path: 'util/integer', alias: 'integer', document: this.resolve(document, 'util/integer') });
+                imports.push({ path: 'util/integer', alias: 'integer', private: false, document: this.resolve(document, 'util/integer') });
             }
             return imports;
         });

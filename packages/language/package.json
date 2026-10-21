@@ -33,7 +33,9 @@
         "langium:generate": "langium generate",
         "langium:watch": "langium generate --watch",
         "test": "vitest run",
-        "test:oracle": "vitest run --config vitest.oracle.config.ts"
+        "test:oracle": "vitest run --config vitest.oracle.config.ts",
+        "corpus:fetch": "node test/corpus/fetch-corpus.mjs",
+        "test:corpus": "vitest run --config vitest.corpus.config.ts"
     },
     "dependencies": {
         "langium": "~4.4.0"

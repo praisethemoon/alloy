@@ -27,3 +27,4 @@ If you selected the test option as well, then the following files will be presen
 
 - `npm test` runs the unit tests: parsing, linking, typing, LSP features and the Analyzer integration (whose jar-gated cases skip without a jar).
 - `npm run test:oracle` checks the test expectations against the real Alloy Analyzer: every syntax case, typing case and example in [`examples/`](../../examples) goes through `alloy.jar commands`, and its verdict must match ours. It needs Java and `ALLOY_JAR` (or the jar at `~/code/tools/alloy/alloy-6.2.0.jar`); the shared cases live in [test/cases](test/cases).
+- `npm run test:corpus` checks that the 86 models of the AlloyTools repository, all accepted by the Analyzer, give no diagnostics of ours. Fetch them once with `npm run corpus:fetch` (it needs git and the network); they land in the git-ignored `test/corpus/models`, and the check skips without them.

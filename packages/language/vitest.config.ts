@@ -11,6 +11,7 @@ export default defineConfig({
         },
         include: ['**/*.test.ts'],
         // The Analyzer oracle starts a JVM per case; it runs on its own with `npm run test:oracle`.
-        exclude: [...configDefaults.exclude, 'test/oracle/**']
+        // The corpus check needs downloaded models; it runs with `npm run test:corpus`.
+        exclude: [...configDefaults.exclude, 'test/oracle/**', 'test/corpus/**']
     }
 });

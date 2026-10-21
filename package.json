@@ -12,7 +12,9 @@
         "langium:generate": "npm run --workspace packages/language langium:generate",
         "langium:watch": "npm run --workspace packages/language langium:watch",
         "test": "npm run --workspace packages/language test",
-        "test:oracle": "npm run --workspace packages/language test:oracle"
+        "test:oracle": "npm run --workspace packages/language test:oracle",
+        "corpus:fetch": "npm run --workspace packages/language corpus:fetch",
+        "test:corpus": "npm run --workspace packages/language test:corpus"
     },
     "devDependencies": {
         "@types/node": "~20.19.43",

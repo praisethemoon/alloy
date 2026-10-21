@@ -188,7 +188,11 @@ IntersectLevel infers Expr:
 
 // Right-associative, with an optional multiplicity on each side.
 ArrowLevel infers Expr:
-    DomainLevel ({infer ArrowExpr.left=current} leftMult=ArrowMult? '->' rightMult=ArrowMult? right=ArrowLevel)?;
+    DomainLevel ({infer ArrowExpr.left=current} leftMult=ArrowMult? '->'
+        // CompFilter always merges -> with a following some/one/lone/set, so
+        // `-> one x, y: …` is a multiplicity, never a quantifier: the lexer
+        // gives a multiplicity right after -> its own token.
+        rightMult=ARROW_MULT? right=ArrowLevel)?;
 
 ArrowMult returns string:
     'some' | 'one' | 'lone' | 'set';
@@ -279,6 +283,8 @@ terminal FUN_ADDSUB: /fun\/(add|sub)(?![A-Za-z0-9_$"])/;
 terminal FUN_MULDIVREM: /fun\/(mul|div|rem)(?![A-Za-z0-9_$"])/;
 terminal FUN_CONST: /fun\/(min|max|next)(?![A-Za-z0-9_$"])/;
 terminal PRED_TOTALORDER: /pred\/totalOrder(?![A-Za-z0-9_$"])/;
+// Only matches right after `->` (see AlloyTokenBuilder).
+terminal ARROW_MULT: /(some|one|lone|set)(?![A-Za-z0-9_$"\u00C0-\u2017\u201A-\uFFFF])/;
 
 // Java letters and digits, plus `"` after the first character. The curly
 // quotes U+2018/U+2019 are primes, not letters.

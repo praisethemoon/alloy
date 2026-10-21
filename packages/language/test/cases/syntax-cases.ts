@@ -90,6 +90,7 @@ export const validSyntax: Array<[string, string]> = [
     ["integer operators", "fact { a fun/add b fun/sub c fun/mul d fun/div e fun/rem f = g }"],
     ["cardinality and casts", "fact { #a = sum b and int c = 1 and int[d] = 1 and e.int = 1 and sum[f] = 1 }"],
     ["arrow multiplicities", "fact { a -> b a some -> one b a lone -> some b a one -> lone b a set -> set b a -> lone b }"],
+    ["arrow multiplicity before another declaration", "fact { some m: a -> one b, n: c -> one d | m = n }"],
     ["restrictions", "fact { a <: b :> c = d }"],
     ["joins", "fact { a.b.c = d::e }"],
     ["box joins", "fact { a[b][c, d] = e[] }"],

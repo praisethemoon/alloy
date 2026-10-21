@@ -1,5 +1,5 @@
 import { DefaultTokenBuilder, type Grammar, type TokenBuilderOptions } from 'langium';
-import type { TokenType, TokenVocabulary } from 'chevrotain';
+import type { IToken, TokenType, TokenVocabulary } from 'chevrotain';
 
 const badName = /[0-9]+[$a-zA-Z_"][$0-9a-zA-Z_"]*/y;
 const hexOrBinary = /0x(?:_|[0-9A-Fa-f]{2})+|0b[01_]+/y;
@@ -25,13 +25,35 @@ export const NAME_STARTING_WITH_DIGIT: TokenType = {
     START_CHARS_HINT: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 } as TokenType;
 
-/** Adds the Analyzer's "name cannot start with a number" token ahead of numbers. */
+const arrowMult = /(?:some|one|lone|set)(?![$0-9a-zA-Z_"\u00C0-\u2017\u201A-\uFFFF])/y;
+
+/**
+ * CompFilter merges -> with a following some/one/lone/set into one token,
+ * so after -> they are always a multiplicity, never a quantifier. This
+ * pattern matches them only there, and comes before the keywords.
+ */
+function matchArrowMult(text: string, offset: number, tokens: IToken[]): RegExpExecArray | null {
+    if (tokens.at(-1)?.tokenType.name !== '->') return null;
+    arrowMult.lastIndex = offset;
+    return arrowMult.exec(text);
+}
+
+/**
+ * Adds the Analyzer's "name cannot start with a number" token ahead of
+ * numbers, and moves the multiplicity after -> ahead of the keywords.
+ */
 export class AlloyTokenBuilder extends DefaultTokenBuilder {
 
     override buildTokens(grammar: Grammar, options?: TokenBuilderOptions): TokenVocabulary {
         const tokens = super.buildTokens(grammar, options) as TokenType[];
         const number = tokens.findIndex(token => token.name === 'NUMBER');
         tokens.splice(number < 0 ? tokens.length : number, 0, NAME_STARTING_WITH_DIGIT);
+        const mult = tokens.findIndex(token => token.name === 'ARROW_MULT');
+        if (mult >= 0) {
+            const [token] = tokens.splice(mult, 1);
+            Object.assign(token, { PATTERN: matchArrowMult, LINE_BREAKS: false, START_CHARS_HINT: ['s', 'o', 'l'] });
+            tokens.unshift(token);
+        }
         return tokens;
     }
 }

@@ -130,6 +130,22 @@ export class AlloyScopeProvider extends DefaultScopeProvider {
                 unqualified.push(describe(node, imported.document, node.name));
             }
         }
+        // The Analyzer also finds unqualified names in modules opened only
+        // through others, unless an open on the way is private; their own
+        // aliases stay invisible.
+        const seen = new Set<LangiumDocument>([document, ...this.modules.imports(document).flatMap(i => i.document ? [i.document] : [])]);
+        const queue = this.modules.imports(document).filter(i => i.document).map(i => i.document!);
+        while (queue.length > 0) {
+            const via = queue.shift()!;
+            for (const imported of this.modules.imports(via)) {
+                if (imported.private || !imported.document || seen.has(imported.document)) continue;
+                seen.add(imported.document);
+                queue.push(imported.document);
+                for (const node of moduleDeclarations(imported.document.parseResult.value, false)) {
+                    if (node.name) unqualified.push(describe(node, imported.document, node.name));
+                }
+            }
+        }
         return [...own, ...qualified, ...unqualified];
     }
 }

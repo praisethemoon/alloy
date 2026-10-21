@@ -10,3 +10,5 @@ syntaxes/
 *.tsbuildinfo
 *.vsix
 .claude/settings.local.json
+# The AlloyTools model corpus, fetched by `npm run corpus:fetch`
+packages/language/test/corpus/models/

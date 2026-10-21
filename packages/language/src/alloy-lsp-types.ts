@@ -1,9 +1,9 @@
-import { WorkspaceCache, type AstNode, type LangiumDocument } from 'langium';
+import { AstUtils, WorkspaceCache, type AstNode, type LangiumDocument } from 'langium';
 import type { AlloyLspServices } from './alloy-lsp-module.js';
 import { parameterCount } from './alloy-lsp-linker.js';
 import {
-    isDeclName, isEnumDecl, isEnumMember, isFunDecl, isJoinExpr, isLetBinding,
-    isMacroDecl, isModuleParam, isNameExpr, isPredDecl, isSigDecl, isSigName,
+    isArrowExpr, isDeclName, isEnumDecl, isEnumMember, isFunDecl, isJoinExpr, isLetBinding,
+    isMacroDecl, isModuleParam, isNameExpr, isPredDecl, isSigDecl, isSigName, isUnaryExpr,
     type BoxJoinExpr, type Decl, type DeclName, type EnumDecl, type EnumMember, type Expr, type FunDecl, type JoinExpr,
     type PredDecl, type SigDecl, type SigName, type SigRef, type Specification
 } from './generated/ast.js';
@@ -130,7 +130,7 @@ export class AlloyTypeSystem {
     protected readonly issueLists: WorkspaceCache<string, TypeIssue[]>;
     protected readonly inProgress = new Set<AstNode>();
 
-    constructor(services: AlloyLspServices) {
+    constructor(protected readonly services: AlloyLspServices) {
         this.types = new WorkspaceCache(services.shared);
         this.issueLists = new WorkspaceCache(services.shared);
     }
@@ -217,6 +217,8 @@ export class AlloyTypeSystem {
 
     protected compute(node: AstNode, issues: TypeIssue[]): AlloyType {
         if (isDeclName(node)) return this.declNameType(node, issues);
+        // Asked for on its own while linking, before its let is typed.
+        if (isLetBinding(node)) return this.compute(node.value, issues);
         const e = node as Expr;
         switch (e.$type) {
             case 'NumberLiteral': return INT;
@@ -233,7 +235,7 @@ export class AlloyTypeSystem {
                     default: return relation(['univ']);
                 }
             case 'NameExpr':
-                return this.implicitThisType(e) ?? this.referenceType(e.ref.ref);
+                return this.implicitThisType(e) ?? this.instantiatedResult(e) ?? this.referenceType(e.ref.ref);
             case 'AtNameExpr':
                 return this.referenceType(e.ref.ref);
             case 'PrimeExpr': return this.check(e.operand, 'either', issues);
@@ -327,7 +329,11 @@ export class AlloyTypeSystem {
         let child: AstNode = name;
         for (let current: AstNode | undefined = name.$container; current; child = current, current = current.$container) {
             if (isSigDecl(current)) {
-                if (current.block !== child || !extendsOrIs(current, owner)) return undefined;
+                // A field's bound is read with `this` bound as well: in
+                // `sig Room { keys: set Key, currentKey: keys -> Time }`, keys is this.keys.
+                const inFact = current.block === child;
+                const inBound = (current.fields as AstNode[]).includes(child);
+                if (!(inFact || inBound) || !extendsOrIs(current, owner)) return undefined;
                 const columns = asRelation(this.typeOf(field));
                 return columns ? relation(...columns.map(r => r.slice(1))) : UNKNOWN;
             }
@@ -371,6 +377,48 @@ export class AlloyTypeSystem {
         const columns = asRelation(bound);
         if (!columns) return UNKNOWN;
         return relation(...owner.names.flatMap(sig => columns.map(c => [sig, ...c])));
+    }
+
+    /**
+     * A fun of an opened module whose result is built from the module's
+     * parameters, as in `fun first: lone elem` of util/ordering, gets the
+     * sigs that the open passes for them, or with several opens of the
+     * module, the union over them; undefined otherwise.
+     */
+    protected instantiatedResult(name: Expr & { $type: 'NameExpr' }): AlloyType | undefined {
+        const fun = name.ref.ref;
+        if (!isFunDecl(fun)) return undefined;
+        const funDocument = AstUtils.getDocument(fun);
+        const document = AstUtils.getDocument(name) as LangiumDocument<Specification>;
+        const params = (funDocument.parseResult.value as Specification).module?.params;
+        if (funDocument === document || !params?.length) return undefined;
+        const resolver = this.services.references.ModuleResolver;
+        const slash = name.ref.$refText.lastIndexOf('/');
+        const alias = slash < 0 ? undefined : name.ref.$refText.slice(0, slash);
+        const opens = document.parseResult.value.opens.filter(open => open.args.length === params.length
+            && (alias === undefined || (open.alias ?? open.path.split('/').at(-1)) === alias)
+            && resolver.resolve(document, open.path) === funDocument);
+        // Unqualified with several matching opens, the name means any of them, so the result is their union.
+        const results = opens.map(open => this.substituted(fun.returnType, new Map(params.map((param, i) => [param, open.args[i]]))));
+        if (results.length === 0 || results.some(r => r?.kind !== 'relation')) return undefined;
+        return relation(...results.flatMap(r => (r as { relations: readonly RelationType[] }).relations));
+    }
+
+    /** The type of a module-parameter expression such as `elem -> elem`, given the parameters' arguments. */
+    protected substituted(expr: Expr | undefined, args: Map<AstNode, SigRef>): AlloyType | undefined {
+        if (isNameExpr(expr)) {
+            const arg = isModuleParam(expr.ref.ref) ? args.get(expr.ref.ref) : undefined;
+            return arg && this.sigRefType(arg);
+        }
+        if (isUnaryExpr(expr) && ['set', 'lone', 'one', 'some'].includes(expr.op)) {
+            return this.substituted(expr.operand, args);
+        }
+        if (isArrowExpr(expr)) {
+            const left = asRelation(this.substituted(expr.left, args) ?? UNKNOWN);
+            const right = asRelation(this.substituted(expr.right, args) ?? UNKNOWN);
+            return left && right ? relation(...left.flatMap(a => right.map(b => [...a, ...b]))) : undefined;
+        }
+        return undefined;
     }
 
     protected funResult(fun: FunDecl): AlloyType {
