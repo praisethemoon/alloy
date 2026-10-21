@@ -17,6 +17,8 @@ import { AlloyInlayHintProvider } from './alloy-lsp-inlay-hints.js';
 import { AlloyRenameProvider } from './alloy-lsp-rename.js';
 import { AlloySemanticTokenProvider } from './alloy-lsp-semantic.js';
 import { AlloySignatureHelpProvider } from './alloy-lsp-signature.js';
+import { AlloyAnalyzer } from './alloy-lsp-analyzer.js';
+import { AlloyCodeLensProvider } from './alloy-lsp-code-lens.js';
 import { AlloyWorkspaceManager } from './alloy-lsp-workspace.js';
 
 /**
@@ -28,6 +30,9 @@ export type AlloyLspAddedServices = {
     },
     typing: {
         TypeSystem: AlloyTypeSystem
+    },
+    analysis: {
+        Analyzer: AlloyAnalyzer
     },
     validation: {
         AlloyLspValidator: AlloyLspValidator
@@ -58,6 +63,9 @@ export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & A
     typing: {
         TypeSystem: (services) => new AlloyTypeSystem(services)
     },
+    analysis: {
+        Analyzer: (services) => new AlloyAnalyzer(services)
+    },
     lsp: {
         CompletionProvider: (services) => new AlloyCompletionProvider(services),
         DefinitionProvider: (services) => new AlloyDefinitionProvider(services),
@@ -68,7 +76,8 @@ export const AlloyLspModule: Module<AlloyLspServices, PartialLangiumServices & A
         InlayHintProvider: (services) => new AlloyInlayHintProvider(services),
         RenameProvider: (services) => new AlloyRenameProvider(services),
         SemanticTokenProvider: (services) => new AlloySemanticTokenProvider(services),
-        SignatureHelp: () => new AlloySignatureHelpProvider()
+        SignatureHelp: () => new AlloySignatureHelpProvider(),
+        CodeLensProvider: (services) => new AlloyCodeLensProvider(services)
     },
     validation: {
         AlloyLspValidator: (services) => new AlloyLspValidator(services)

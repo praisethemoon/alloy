@@ -24,6 +24,21 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Show the inferred types of let bindings and of names declared with = as inlay hints."
+                },
+                "alloy-lsp.analyzer.jar": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the Alloy 6 jar used to run commands. Falls back to the ALLOY_JAR environment variable."
+                },
+                "alloy-lsp.analyzer.java": {
+                    "type": "string",
+                    "default": "java",
+                    "description": "The java executable that runs the Alloy jar."
+                },
+                "alloy-lsp.analyzer.timeoutSeconds": {
+                    "type": "number",
+                    "default": 300,
+                    "description": "Stop a run or check that takes longer than this."
                 }
             }
         },
