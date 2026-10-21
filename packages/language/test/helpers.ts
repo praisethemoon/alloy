@@ -1,4 +1,4 @@
-import { EmptyFileSystem, type LangiumDocument } from "langium";
+import { DocumentValidator, EmptyFileSystem, type LangiumDocument } from "langium";
 import { parseHelper } from "langium/test";
 import type { Decl, Expr, Specification } from "alloy-lsp-language";
 import { createAlloyLspServices, isFactDecl } from "alloy-lsp-language";
@@ -7,16 +7,19 @@ const services = createAlloyLspServices(EmptyFileSystem);
 const parseDocument = parseHelper<Specification>(services.AlloyLsp);
 
 export async function parse(text: string): Promise<LangiumDocument<Specification>> {
-    return parseDocument(text);
+    return parseDocument(text, { validation: true });
 }
 
-/** Lexer and parser errors, one message per line; empty when the text is valid Alloy syntax. */
+const syntaxCodes: unknown[] = [DocumentValidator.LexingError, DocumentValidator.ParsingError];
+
+/**
+ * Langium's own lexing and parsing diagnostics, as the editor shows them, one per line;
+ * empty when the text is valid Alloy syntax. Linking and custom diagnostics are left out.
+ */
 export function syntaxErrors(document: LangiumDocument): string[] {
-    const { lexerErrors, parserErrors } = document.parseResult;
-    return [
-        ...lexerErrors.map(e => `lexer ${e.line}:${e.column}: ${e.message}`),
-        ...parserErrors.map(e => `parser ${e.token.startLine}:${e.token.startColumn}: ${e.message}`)
-    ];
+    return (document.diagnostics ?? [])
+        .filter(d => syntaxCodes.includes(d.data?.code))
+        .map(d => `${d.range.start.line + 1}:${d.range.start.character + 1}: ${d.message}`);
 }
 
 /** Parses `fact { text }` and shows the AST of its first formula. */
