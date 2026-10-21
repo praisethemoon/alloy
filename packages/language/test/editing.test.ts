@@ -1,9 +1,13 @@
 import { describe, expect, test } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { DocumentValidator, type LangiumDocument } from "langium";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { CodeAction, Diagnostic, Position, TextEdit } from "vscode-languageserver";
 import { MUTABLE_MODIFIER, utilLibrary, type AlloySemanticTokenProvider } from "alloy-lsp-language";
 import { alloyServices, parse } from "./helpers.js";
+
+const examplesDir = path.resolve(__dirname, "../../../examples");
 
 let counter = 0;
 const nextUri = (name = "model") => `file:///editing/${name}${++counter}.als`;
@@ -70,6 +74,34 @@ describe("formatting", () => {
         const text = "// the people\nsig Person {} -- nobody yet\n/* facts */\nfact { no Person }";
         expect(await format(text)).toBe(text);
     });
+
+    test("keeps comments inside fields and blocks at their line's indentation", async () => {
+        const text = [
+            "sig Person {",
+            "    /** first */",
+            "    a: Person,",
+            "    /** after a comma */",
+            "    b: Person, // trailing stays",
+            "    c: Person",
+            "    -- before the brace",
+            "}",
+            "fact {",
+            "    // a line comment",
+            "    some Person",
+            "    /* a block comment */",
+            "    no none",
+            "    // before the brace",
+            "}"
+        ].join("\n");
+        expect(await format(text)).toBe(text);
+        expect(await format(text.replace(/^    /gm, "  "))).toBe(text);
+    });
+
+    test.each(fs.readdirSync(examplesDir, { recursive: true, encoding: "utf-8" }).filter(f => f.endsWith(".als")).sort())(
+        "examples/%s formats to itself", async file => {
+            const text = fs.readFileSync(path.join(examplesDir, file), "utf-8");
+            expect(await format(text)).toBe(text);
+        });
 
     test.each(Object.keys(utilLibrary).sort())("%s formats idempotently and keeps its tokens", async module => {
         const once = await format(utilLibrary[module]);

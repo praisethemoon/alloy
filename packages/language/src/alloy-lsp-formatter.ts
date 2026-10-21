@@ -1,5 +1,5 @@
-import { CstUtils, type AstNode } from 'langium';
-import { AbstractFormatter, Formatting, type NodeFormatter } from 'langium/lsp';
+import { CstUtils, GrammarUtils, type AstNode, type CstNode } from 'langium';
+import { AbstractFormatter, Formatting, type FormattingRegion, type NodeFormatter } from 'langium/lsp';
 import {
     isArrowExpr, isBinaryExpr, isBlock, isBoxJoinExpr, isBuiltinCall, isComprehension, isDecl, isFunDecl, isImpliesExpr,
     isJoinExpr, isPredDecl, isPrimeExpr, isSequenceExpr, isSigDecl, isSpecification, isUnaryExpr, type SigDecl
@@ -28,12 +28,13 @@ export class AlloyFormatter extends AbstractFormatter {
         } else if (isDecl(node)) {
             f.keyword(':').prepend(Formatting.noSpace()).append(Formatting.oneSpace());
         } else if (isBinaryExpr(node) || isImpliesExpr(node)) {
-            f.property('op').surround(Formatting.oneSpace());
-            if (isImpliesExpr(node)) f.keyword('else').surround(Formatting.oneSpace());
+            spaceWithinLine(f.property('op'), GrammarUtils.findNodeForProperty(node.$cstNode, 'op'), true);
+            if (isImpliesExpr(node)) spaceWithinLine(f.keyword('else'), GrammarUtils.findNodeForKeyword(node.$cstNode, 'else'), true);
         } else if (isArrowExpr(node)) {
-            f.keyword('->').surround(Formatting.oneSpace());
+            spaceWithinLine(f.keyword('->'), GrammarUtils.findNodeForKeyword(node.$cstNode, '->'), true);
         } else if (isSequenceExpr(node)) {
-            f.keyword(';').prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+            f.keyword(';').prepend(Formatting.noSpace());
+            spaceWithinLine(f.keyword(';'), GrammarUtils.findNodeForKeyword(node.$cstNode, ';'), false);
         } else if (isJoinExpr(node)) {
             f.keywords('.', '::').surround(Formatting.noSpace());
         } else if (isBoxJoinExpr(node) || isBuiltinCall(node)) {
@@ -49,7 +50,11 @@ export class AlloyFormatter extends AbstractFormatter {
             f.keywords(']', ')').prepend(Formatting.noSpace());
         }
         if (isFunDecl(node) || isPredDecl(node) || isComprehension(node) || isBoxJoinExpr(node) || isBuiltinCall(node) || isSigDecl(node)) {
-            f.keywords(',').prepend(Formatting.noSpace()).append(Formatting.oneSpace());
+            const commas = f.keywords(',').prepend(Formatting.noSpace());
+            // In a multi-line field list the item layout puts the next field (or its comment) on a new line.
+            if (!(isSigDecl(node) && spansLines(node, '{', '}'))) {
+                commas.append(Formatting.oneSpace());
+            }
         }
     }
 
@@ -62,11 +67,25 @@ export class AlloyFormatter extends AbstractFormatter {
             return;
         }
         if (spansLines(sig, '{', '}')) {
-            f.property('fields').prepend(Formatting.indent());
+            f.nodes(...sig.fields).prepend(Formatting.indent());
+            this.indentOwnLineComments(f, [...sig.fields.map(field => field.$cstNode), GrammarUtils.findNodeForKeyword(sig.$cstNode, '}')]);
             close.prepend(Formatting.newLine());
         } else {
             open.append(Formatting.oneSpace());
             close.prepend(Formatting.oneSpace());
+        }
+    }
+
+    /**
+     * Langium formats a comment with no formatting of its own at the
+     * enclosing indentation, which for our per-item indent is column 0. Give
+     * each comment on its own line before one of `before` the items' indent;
+     * a comment trailing a line stays where it is.
+     */
+    protected indentOwnLineComments(f: NodeFormatter<AstNode>, before: Array<CstNode | undefined>): void {
+        const comments = before.flatMap(node => node ? ownLineCommentsBefore(node) : []);
+        if (comments.length > 0) {
+            f.cst(comments).prepend(Formatting.indent());
         }
     }
 
@@ -80,12 +99,42 @@ export class AlloyFormatter extends AbstractFormatter {
         }
         if (spansLines(node, '{', '}')) {
             f.nodes(...items).prepend(Formatting.indent());
+            this.indentOwnLineComments(f, [...items.map(item => item.$cstNode), GrammarUtils.findNodeForKeyword(node.$cstNode, '}')]);
             close.prepend(Formatting.newLine());
         } else {
             open.append(Formatting.oneSpace());
             close.prepend(Formatting.oneSpace());
         }
     }
+}
+
+/**
+ * One space on each side of an operator (only after it when `before` is
+ * false), but only where its neighbour is on the same line: a line break the
+ * author put next to an operator stays.
+ */
+function spaceWithinLine(region: FormattingRegion, operator: CstNode | undefined, before: boolean): void {
+    if (!operator) return;
+    const previous = CstUtils.getPreviousNode(operator, false);
+    const next = CstUtils.getNextNode(operator, false);
+    if (before && previous && previous.range.end.line === operator.range.start.line) {
+        region.prepend(Formatting.oneSpace());
+    }
+    if (next && next.range.start.line === operator.range.end.line) {
+        region.append(Formatting.oneSpace());
+    }
+}
+
+/** The comments directly before a node that start a line of their own. */
+function ownLineCommentsBefore(node: CstNode): CstNode[] {
+    const comments: CstNode[] = [];
+    for (let previous = CstUtils.getPreviousNode(node, true); previous?.hidden; previous = CstUtils.getPreviousNode(previous, true)) {
+        comments.unshift(previous);
+    }
+    return comments.filter(comment => {
+        const before = CstUtils.getPreviousNode(comment, false);
+        return !before || before.range.end.line < comment.range.start.line;
+    });
 }
 
 /** Whether a node's braces sit on different lines. */
