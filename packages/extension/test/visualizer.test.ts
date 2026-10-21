@@ -57,8 +57,7 @@ describe("atom names", () => {
 describe("dot in the app's default look", () => {
     test("atoms are gold boxes, relations arcs in the Classic colours, middle columns in brackets", () => {
         const dot = instanceToDot(family.states[0]);
-        expect(dot).toContain(`node [shape=box, fillcolor="${NODE_COLOR}"`);
-        expect(dot).toContain('"Alice$0" [label="Alice", style="filled"];');
+        expect(dot).toContain(`"Alice$0" [label="Alice", shape=box, fillcolor="${NODE_COLOR}", style="filled,solid"];`);
         expect(dot).toContain(`"Bob$0" -> "Alice$0" [label="likes[Alice]", color="${EDGE_COLORS[0]}", fontcolor="${EDGE_COLORS[0]}", style=solid];`);
         expect(dot).toContain(`"Alice$0" -> "Bob$0" [label="parent", color="${EDGE_COLORS[1]}"`);
     });

@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
-import { Button, Divider, Icon, IconButton, Tooltip } from 'baukasten-ui/core';
-import { ButtonGroup } from 'baukasten-ui/extra';
-import type { Move } from '../visualizer/protocol.js';
+import { Button, Divider, Dropdown, Icon, IconButton, Tooltip } from 'baukasten-ui/core';
+import { ButtonGroup, Menu, MenuItem } from 'baukasten-ui/extra';
+import type { Move, SaveKind } from '../visualizer/protocol.js';
 import type { ViewKind } from './StateView.js';
 
 // Labels and tooltips are the Alloy app's own (VizGUI).
@@ -37,6 +37,10 @@ export interface ToolbarProps {
     onNext: () => void;
     evaluatorOpen: boolean;
     onToggleEvaluator: () => void;
+    themeOpen: boolean;
+    onToggleTheme: () => void;
+    onMagic: () => void;
+    onExport: (kind: Exclude<SaveKind, 'theme'>) => void;
 }
 
 export function Toolbar(props: ToolbarProps) {
@@ -50,6 +54,20 @@ export function Toolbar(props: ToolbarProps) {
                         {v.label}
                     </Button>))}
             </ButtonGroup>
+            <Divider orientation="vertical" spacing="var(--bk-spacing-1)" />
+            {tip(props.themeOpen ? 'Close the theme customization panel' : 'Open the theme customization panel',
+                <Button size="sm" variant={props.themeOpen ? 'primary' : 'secondary'} aria-pressed={props.themeOpen} onClick={props.onToggleTheme}>
+                    <Icon name="symbol-color" /> Theme
+                </Button>)}
+            {tip('Automatic theme customization (will reset current theme)',
+                <Button size="sm" variant="secondary" onClick={props.onMagic}><Icon name="sparkle" /> Magic Layout</Button>)}
+            <Dropdown trigger={<Button size="sm" variant="secondary"><Icon name="export" /> Export <Icon name="chevron-down" /></Button>}>
+                <Menu size="sm">
+                    <MenuItem onClick={() => props.onExport('dot')}>Dot…</MenuItem>
+                    <MenuItem onClick={() => props.onExport('xml')}>XML…</MenuItem>
+                    <MenuItem onClick={() => props.onExport('predicate')}>Instance as predicate…</MenuItem>
+                </Menu>
+            </Dropdown>
             <Divider orientation="vertical" spacing="var(--bk-spacing-1)" />
             {tip(props.evaluatorOpen ? 'Close the evaluator' : 'Open the evaluator',
                 <Button size="sm" variant={props.evaluatorOpen ? 'primary' : 'secondary'} aria-pressed={props.evaluatorOpen} onClick={props.onToggleEvaluator}>

@@ -94,6 +94,11 @@ export class AlloySession {
         return (await this.request({ op: 'metamodel' })).xml as string;
     }
 
+    /** The sample themes in the Alloy jar, by their path inside it, for Load Sample Theme. */
+    async sampleThemes(): Promise<Array<{ path: string, text: string }>> {
+        return (await this.request({ op: 'samples' })).themes as Array<{ path: string, text: string }>;
+    }
+
     dispose(): void {
         this.process?.kill();
         this.process = undefined;

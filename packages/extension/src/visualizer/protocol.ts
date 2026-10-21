@@ -19,13 +19,21 @@ export interface SolutionMessage {
     newTraceAllowed: boolean;
 }
 
+/** What the visualizer saves through the extension, as the app's File and Export menus do. */
+export type SaveKind = 'theme' | 'dot' | 'xml' | 'predicate';
+
 export type ToWebview =
     | SolutionMessage
     | { type: 'busy', busy: boolean }
     | { type: 'error', message: string }
-    | { type: 'evaluated', id: number, value?: string, error?: string };
+    | { type: 'evaluated', id: number, value?: string, error?: string }
+    | { type: 'theme', text: string, name: string };
 
 export type FromWebview =
     | { type: 'ready' }
     | { type: 'move', mode: Move, state?: number }
-    | { type: 'evaluate', id: number, expr: string, state: number };
+    | { type: 'evaluate', id: number, expr: string, state: number }
+    | { type: 'loadTheme' }
+    | { type: 'loadSampleTheme' }
+    /** Save As always asks where; Save reuses the theme's last file. */
+    | { type: 'save', kind: SaveKind, text: string, saveAs: boolean };

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Alert, Code, Icon, Spinner, Table } from 'baukasten-ui/core';
+import { Alert, Code, Icon, IconButton, Spinner, Table, Tooltip } from 'baukasten-ui/core';
 import { instanceToDot } from '../visualizer/dot.js';
 import type { AlloyState } from '../visualizer/instance.js';
+import { projectState } from '../visualizer/projection.js';
+import type { Theme } from '../visualizer/theme.js';
 import { instanceToTables, instanceToText, instanceToTree, type InstanceTreeNode } from '../visualizer/views.js';
 import { loadGraphviz } from './host.js';
 
@@ -10,20 +12,23 @@ export type ViewKind = 'viz' | 'txt' | 'table' | 'tree';
 
 const scroll: CSSProperties = { height: '100%', overflow: 'auto', padding: 'var(--bk-padding-md)', boxSizing: 'border-box' };
 
-/** One state of the instance in the chosen view. */
-export function StateView({ state, view }: { state: AlloyState, view: ViewKind }) {
+/** One state of the instance in the chosen view; the graph follows the theme and projection. */
+export function StateView({ state, view, theme, picks }: { state: AlloyState, view: ViewKind, theme: Theme, picks: Record<string, string> }) {
     switch (view) {
-        case 'viz': return <GraphView state={state} />;
+        case 'viz': return <GraphView state={state} theme={theme} picks={picks} />;
         case 'txt': return <div style={scroll}><Code block>{instanceToText(state)}</Code></div>;
         case 'table': return <TablesView state={state} />;
         case 'tree': return <div style={scroll}><InstanceTree nodes={instanceToTree(state)} /></div>;
     }
 }
 
-/** The graph, laid out by Graphviz from the dot the app's default theme gives. */
-function GraphView({ state }: { state: AlloyState }) {
-    const dot = useMemo(() => instanceToDot(state), [state]);
+const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2, 3, 4];
+
+/** The graph, laid out by Graphviz from the dot the theme and projection give, with zoom. */
+function GraphView({ state, theme, picks }: { state: AlloyState, theme: Theme, picks: Record<string, string> }) {
+    const dot = useMemo(() => instanceToDot(projectState(state, picks), theme), [state, theme, picks]);
     const [svg, setSvg] = useState<string>();
+    const [zoom, setZoom] = useState<number>();
     const [error, setError] = useState<string>();
     useEffect(() => {
         let current = true;
@@ -35,8 +40,22 @@ function GraphView({ state }: { state: AlloyState }) {
     }, [dot]);
     if (error) return <div style={scroll}><Alert variant="error" title="Graphviz could not lay out this instance">{error}</Alert></div>;
     if (!svg) return <div style={{ ...scroll, display: 'grid', placeItems: 'center' }}><Spinner aria-label="Laying out the graph" /></div>;
-    // Graphviz writes the SVG from the dot we generated, with every label escaped.
-    return <div className="alloy-graph" style={scroll} dangerouslySetInnerHTML={{ __html: svg }} />;
+    const step = (direction: number) => {
+        const current = zoom ?? 1;
+        const index = ZOOMS.findIndex(z => z >= current - 1e-9);
+        setZoom(ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, (index < 0 ? ZOOMS.length - 1 : index) + direction))]);
+    };
+    return (
+        <div className="alloy-graph-frame">
+            <div className="alloy-zoom" role="group" aria-label="Zoom">
+                <Tooltip content="Zoom out" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="zoom-out" />} aria-label="Zoom out" onClick={() => step(-1)} /></Tooltip>
+                <Tooltip content="Fit to the window" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="screen-normal" />} aria-label="Fit to the window" onClick={() => setZoom(undefined)} /></Tooltip>
+                <Tooltip content="Zoom in" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="zoom-in" />} aria-label="Zoom in" onClick={() => step(1)} /></Tooltip>
+            </div>
+            {/* Graphviz writes the SVG from the dot we generated, with every label escaped. */}
+            <div className={zoom === undefined ? 'alloy-graph alloy-graph-fit' : 'alloy-graph'} style={{ ...scroll, zoom: zoom ?? 1 }} dangerouslySetInnerHTML={{ __html: svg }} />
+        </div>
+    );
 }
 
 function TablesView({ state }: { state: AlloyState }) {

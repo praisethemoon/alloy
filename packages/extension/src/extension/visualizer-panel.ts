@@ -2,7 +2,15 @@ import * as vscode from 'vscode';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import { AlloySession, type SessionLaunch, type SessionSolution } from 'alloy-lsp-language';
-import type { FromWebview, SolutionMessage, ToWebview } from '../visualizer/protocol.js';
+import type { FromWebview, SaveKind, SolutionMessage, ToWebview } from '../visualizer/protocol.js';
+
+/** The save dialog's filter and file extension per kind of file saved. */
+const SAVE_FILTERS: Record<SaveKind, [string, string]> = {
+    theme: ['Alloy theme', 'thm'],
+    dot: ['Graphviz dot', 'dot'],
+    xml: ['Alloy instance', 'xml'],
+    predicate: ['Alloy model', 'als']
+};
 
 /**
  * A visualizer window, as the Alloy app opens one per instance: a webview
@@ -17,11 +25,14 @@ export class VisualizerPanel {
     protected ready = false;
     protected readonly queue: ToWebview[] = [];
     protected title: string;
+    /** Where the theme was last loaded from or saved to, for Save. */
+    protected themeFile: vscode.Uri | undefined;
 
     protected constructor(
         protected readonly panel: vscode.WebviewPanel,
         protected readonly extensionUri: vscode.Uri,
         protected readonly session: AlloySession | undefined,
+        protected readonly launch: SessionLaunch,
         title: string
     ) {
         this.title = title;
@@ -59,15 +70,15 @@ export class VisualizerPanel {
             return;
         }
         const title = `${solution.kind} ${solution.command} · ${path.basename(file)}`;
-        const panel = new VisualizerPanel(VisualizerPanel.createWebview(extensionUri, title), extensionUri, session, title);
+        const panel = new VisualizerPanel(VisualizerPanel.createWebview(extensionUri, title), extensionUri, session, launch, title);
         panel.show(solution);
     }
 
     /** Opens an instance saved as XML; without a session, only its views and states can be explored. */
-    static async openXml(extensionUri: vscode.Uri, file: vscode.Uri): Promise<void> {
+    static async openXml(extensionUri: vscode.Uri, launch: SessionLaunch, file: vscode.Uri): Promise<void> {
         const xml = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
         const title = path.basename(file.fsPath);
-        const panel = new VisualizerPanel(VisualizerPanel.createWebview(extensionUri, title), extensionUri, undefined, title);
+        const panel = new VisualizerPanel(VisualizerPanel.createWebview(extensionUri, title), extensionUri, undefined, launch, title);
         panel.post({ type: 'solution', xml, title, kind: 'run', live: false, incremental: false, newTraceAllowed: false });
     }
 
@@ -114,7 +125,48 @@ export class VisualizerPanel {
                 return this.move(message.mode, message.state);
             case 'evaluate':
                 return this.evaluate(message.id, message.expr, message.state);
+            case 'loadTheme':
+                return this.loadTheme();
+            case 'loadSampleTheme':
+                return this.loadSampleTheme();
+            case 'save':
+                return this.save(message.kind, message.text, message.saveAs);
         }
+    }
+
+    protected async loadTheme(): Promise<void> {
+        const [file] = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'Alloy theme': ['thm'] }, title: 'Load Theme' }) ?? [];
+        if (!file) return;
+        this.themeFile = file;
+        this.post({ type: 'theme', text: new TextDecoder().decode(await vscode.workspace.fs.readFile(file)), name: path.basename(file.fsPath) });
+    }
+
+    /** Offers the sample themes inside the Alloy jar, as the app's Load Sample Theme does. */
+    protected async loadSampleTheme(): Promise<void> {
+        const session = this.session ?? new AlloySession(this.launch);
+        try {
+            const themes = await session.sampleThemes();
+            const pick = await vscode.window.showQuickPick(
+                themes.map(t => ({ label: path.basename(t.path), description: path.dirname(t.path).replace(/^models\//, ''), theme: t })),
+                { title: 'Load Sample Theme', placeHolder: 'A theme from the Alloy distribution' });
+            if (!pick) return;
+            this.themeFile = undefined;
+            this.post({ type: 'theme', text: pick.theme.text, name: pick.label });
+        } catch (error) {
+            this.post({ type: 'error', message: (error as Error).message });
+        } finally {
+            if (session !== this.session) session.dispose();
+        }
+    }
+
+    protected async save(kind: SaveKind, text: string, saveAs: boolean): Promise<void> {
+        const [label, extension] = SAVE_FILTERS[kind];
+        let target = kind === 'theme' && !saveAs ? this.themeFile : undefined;
+        target ??= await vscode.window.showSaveDialog({ filters: { [label]: [extension] }, title: `Save ${label}` });
+        if (!target) return;
+        await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(text));
+        if (kind === 'theme') this.themeFile = target;
+        vscode.window.setStatusBarMessage(`Alloy: saved ${path.basename(target.fsPath)}`, 4000);
     }
 
     protected async move(mode: 'next' | 'config' | 'trace' | 'init' | 'fork', state?: number): Promise<void> {

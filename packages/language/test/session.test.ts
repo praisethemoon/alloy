@@ -103,6 +103,12 @@ describe.skipIf(!ready)("the Alloy session helper", () => {
         expect(xml).toContain('label="succ"');
     });
 
+    test("lists the sample themes inside the Alloy jar", { timeout: 120_000 }, async () => {
+        const themes = await open().sampleThemes();
+        expect(themes.map(t => t.path)).toContain("models/book/appendixE/hotel.thm");
+        expect(themes.find(t => t.path.endsWith("hotel.thm"))!.text).toContain("<view>");
+    });
+
     test("errors come back as errors and the helper keeps going", { timeout: 120_000 }, async () => {
         const session = open();
         await expect(session.move("next")).rejects.toThrow("Nothing has been run yet.");

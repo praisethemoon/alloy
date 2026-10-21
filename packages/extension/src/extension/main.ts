@@ -26,7 +26,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
         vscode.commands.registerCommand('alloy-lsp.openInstanceXml', async () => {
             const [file] = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { 'Alloy instance': ['xml'] }, title: 'Open an Alloy instance' }) ?? [];
-            if (file) await VisualizerPanel.openXml(context.extensionUri, file);
+            if (file) await VisualizerPanel.openXml(context.extensionUri, sessionLaunch(context), file);
         }));
 }
 

@@ -16,6 +16,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import edu.mit.csail.sdg.alloy4.A4Reporter;
 import edu.mit.csail.sdg.alloy4.Err;
@@ -81,6 +83,7 @@ public final class AlloySession {
             case "next": return next(request);
             case "eval": return eval(request);
             case "metamodel": return metamodel();
+            case "samples": return samples();
             default: throw new IllegalArgumentException("Unknown op " + op + ".");
         }
     }
@@ -171,6 +174,24 @@ public final class AlloySession {
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("xml", xml.toString());
+        return result;
+    }
+
+    /** The sample themes inside the Alloy jar, as the app's Load Sample Theme offers them. */
+    private Map<String, Object> samples() throws Exception {
+        List<Object> themes = new ArrayList<>();
+        File jar = new File(CompUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        try (JarFile archive = new JarFile(jar)) {
+            for (JarEntry entry : java.util.Collections.list(archive.entries())) {
+                if (!entry.getName().startsWith("models/") || !entry.getName().endsWith(".thm")) continue;
+                Map<String, Object> theme = new LinkedHashMap<>();
+                theme.put("path", entry.getName());
+                theme.put("text", new String(archive.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8));
+                themes.add(theme);
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("themes", themes);
         return result;
     }
 

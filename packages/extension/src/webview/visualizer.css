@@ -151,3 +151,48 @@ body {
     color: var(--bk-color-danger);
     white-space: pre-wrap;
 }
+
+.alloy-graph-frame {
+    position: relative;
+    height: 100%;
+}
+
+.alloy-zoom {
+    position: absolute;
+    top: var(--bk-spacing-1);
+    right: var(--bk-spacing-3);
+    z-index: var(--bk-z-index-overlay-content);
+    display: flex;
+    gap: var(--bk-gap-xs);
+    background: var(--bk-color-background-elevated);
+    border: var(--bk-border-width-1) solid var(--bk-color-border);
+    border-radius: var(--bk-radius-md);
+}
+
+.alloy-graph:not(.alloy-graph-fit) svg {
+    max-width: none;
+}
+
+.alloy-projection {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--bk-gap-sm);
+    padding: var(--bk-padding-xs);
+    border-bottom: var(--bk-border-width-1) solid var(--bk-color-divider);
+    font-size: var(--bk-font-size-sm);
+}
+
+.alloy-theme-flags {
+    display: flex;
+    flex-direction: column;
+    gap: var(--bk-gap-xs);
+}
+
+.alloy-theme-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--bk-gap-sm);
+    width: 100%;
+}
