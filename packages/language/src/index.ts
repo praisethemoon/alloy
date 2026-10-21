@@ -15,6 +15,7 @@ export * from './alloy-lsp-hover.js';
 export * from './alloy-lsp-inlay-hints.js';
 export * from './alloy-lsp-rename.js';
 export * from './alloy-lsp-semantic.js';
+export * from './alloy-lsp-session.js';
 export * from './alloy-lsp-signature.js';
 export * from './alloy-lsp-symbols.js';
 export * from './builtin/util-library.js';

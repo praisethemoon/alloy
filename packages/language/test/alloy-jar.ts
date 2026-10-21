@@ -10,3 +10,6 @@ export const shippedJar = path.resolve(__dirname, "../../extension/alloy/alloy.j
  */
 export const testJar = [process.env.ALLOY_JAR, shippedJar]
     .find((candidate): candidate is string => !!candidate && fs.existsSync(candidate));
+
+/** The Java session helper the extension's build compiles beside the shipped jar (`npm run build`). */
+export const sessionJar = path.resolve(__dirname, "../../extension/alloy/alloy-session.jar");

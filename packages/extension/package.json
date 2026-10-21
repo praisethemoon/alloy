@@ -63,7 +63,8 @@
         "vscode:prepublish": "npm run build",
         "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/alloy-lsp.tmLanguage.json ./syntaxes/alloy-lsp.tmLanguage.json",
         "fetch:alloy": "node scripts/fetch-alloy.mjs",
-        "build": "npm run fetch:alloy && npm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
+        "build:session": "node scripts/build-session.mjs",
+        "build": "npm run fetch:alloy && npm run build:session && npm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
         "build:clean": "npm run clean && npm run build",
         "watch": "npm run build:prepare && concurrently -n tsc,esbuild -c blue,yellow \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\""
     },
