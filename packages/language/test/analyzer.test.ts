@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { expandHome } from "alloy-lsp-language";
 import { alloyServices, parse } from "./helpers.js";
 
 /** The Alloy jar to test against: ALLOY_JAR, else a known local install; these tests skip without one. */
@@ -29,6 +30,16 @@ async function useJar(value: string | undefined): Promise<void> {
     const services = await alloyServices();
     services.shared.workspace.ConfigurationProvider.updateConfiguration({ settings: { "alloy-lsp": { analyzer: { jar: value ?? "" } } } });
 }
+
+describe("paths in settings", () => {
+    test("a leading ~ is the home folder; other paths are kept", () => {
+        expect(expandHome("~/tools/alloy.jar")).toBe(path.join(os.homedir(), "tools/alloy.jar"));
+        expect(expandHome("~")).toBe(os.homedir());
+        expect(expandHome("/opt/alloy.jar")).toBe("/opt/alloy.jar");
+        expect(expandHome("lib/~/alloy.jar")).toBe("lib/~/alloy.jar");
+        expect(expandHome(undefined)).toBeUndefined();
+    });
+});
 
 describe("without a jar", () => {
     test("running explains how to configure one", async () => {
@@ -78,6 +89,13 @@ describe.skipIf(!jar)("with the Alloy jar", () => {
         const lenses = await services.AlloyLsp.lsp.CodeLensProvider!.provideCodeLens(document, { textDocument: { uri: document.uri.toString() } });
         expect(lenses?.[1].command?.title).toMatch(/^▶ Check again · counterexample found \(\d+ ms\)$/);
         expect(lenses?.[0].command?.title).toBe("▶ Run");
+    });
+
+    test.skipIf(!jar?.startsWith(os.homedir()))("a jar setting written with ~ runs", { timeout: 120_000 }, async () => {
+        await useJar("~" + jar!.slice(os.homedir().length));
+        const services = await alloyServices();
+        const { document } = await modelOnDisk(model);
+        expect((await services.AlloyLsp.analysis.Analyzer.run(document, 2)).outcome).toBe("no-counterexample");
     });
 
     test("a model the Analyzer cannot parse reports its syntax error", { timeout: 120_000 }, async () => {

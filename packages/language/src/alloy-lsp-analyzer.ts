@@ -66,7 +66,11 @@ export class AlloyAnalyzer {
 
     async settings(): Promise<AnalyzerSettings> {
         const configured = (await this.configuration.getConfiguration('alloy-lsp', 'analyzer') ?? {}) as AnalyzerSettings;
-        return { ...configured, jar: configured.jar || process.env.ALLOY_JAR || undefined };
+        return {
+            ...configured,
+            jar: expandHome(configured.jar || process.env.ALLOY_JAR || undefined),
+            java: expandHome(configured.java || undefined)
+        };
     }
 
     /** Runs the command with this index in the document's file and records the result. */
@@ -109,6 +113,12 @@ export class AlloyAnalyzer {
 
 interface Receipt {
     commands: Record<string, { type?: string, solution?: Array<{ duration?: number }> }>;
+}
+
+/** Resolves a leading `~` to the home folder: java is started without a shell, which would do it. */
+export function expandHome(file: string | undefined): string | undefined {
+    if (file === '~') return os.homedir();
+    return file?.startsWith('~/') ? path.join(os.homedir(), file.slice(2)) : file;
 }
 
 /** The useful line of the Analyzer's error output, e.g. its syntax error and position. */
