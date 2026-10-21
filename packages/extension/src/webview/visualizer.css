@@ -191,8 +191,49 @@ body {
 
 .alloy-theme-actions {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    align-items: center;
     gap: var(--bk-gap-sm);
     width: 100%;
+}
+
+.alloy-theme-spacer {
+    flex: 1;
+}
+
+/* Two columns that can both shrink, so controls never overflow the drawer. */
+.alloy-theme-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: center;
+    column-gap: var(--bk-gap-md);
+    padding: var(--bk-spacing-1) 0;
+}
+
+.alloy-theme-label {
+    font-size: var(--bk-font-size-sm);
+    color: var(--bk-color-foreground);
+    overflow-wrap: anywhere;
+}
+
+.alloy-theme-control {
+    display: flex;
+    flex-direction: column;
+    gap: var(--bk-spacing-1);
+    min-width: 0;
+}
+
+/* baukasten's Select has a 200px minimum width; here it takes its column's. */
+.alloy-theme .alloy-theme-control > * {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.alloy-theme .alloy-theme-control > .alloy-theme-help {
+    font-size: var(--bk-font-size-xs);
+    color: var(--bk-color-foreground-muted);
+}
+
+.alloy-theme-check {
+    padding: var(--bk-spacing-1) 0 var(--bk-spacing-2);
 }

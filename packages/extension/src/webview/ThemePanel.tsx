@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button, Checkbox, FieldLabel, FormGroup, FormHelper, Input, Label, Select } from 'baukasten-ui/core';
-import { Accordion, AccordionItem, Drawer, DrawerBody, DrawerFooter, DrawerHeader } from 'baukasten-ui/extra';
+import { Button, Checkbox, Dropdown, FormHelper, Icon, Input, Label, Select } from 'baukasten-ui/core';
+import { Accordion, AccordionItem, ButtonGroup, Drawer, DrawerBody, DrawerFooter, DrawerHeader, Menu, MenuItem } from 'baukasten-ui/extra';
 import {
     COLORS, PALETTES, relationKey, setKey, SHAPES, STYLES,
     type EdgeSettings, type NodeSettings, type Palette, type Theme
@@ -33,13 +33,17 @@ function without<T extends object>(settings: T): T {
     return Object.fromEntries(Object.entries(settings).filter(([, v]) => v !== undefined)) as T;
 }
 
+// A label beside its control. baukasten's FormGroup columns can't shrink below
+// Select's minimum width, which overflowed this narrow drawer; these can.
 function Row({ label, children, help }: { label: string, children: React.ReactNode, help?: string }) {
     return (
-        <FormGroup labelWidth="45%">
-            <FieldLabel>{label}</FieldLabel>
-            {children}
-            {help && <FormHelper>{help}</FormHelper>}
-        </FormGroup>
+        <div className="alloy-theme-row">
+            <span className="alloy-theme-label">{label}</span>
+            <div className="alloy-theme-control">
+                {children}
+                {help && <span className="alloy-theme-help">{help}</span>}
+            </div>
+        </div>
     );
 }
 
@@ -115,7 +119,7 @@ export function ThemePanel(props: ThemePanelProps) {
     const relationKeys = subjects.relations.map(r => relationKey(r.name, r.columns));
     const currentRelation = relation && relationKeys.includes(relation) ? relation : relationKeys[0];
     const toggle = (key: 'useOriginalAtomNames' | 'hidePrivate' | 'hideSkolem' | 'hideMeta', label: string) => (
-        <Label variant="checkbox" size="sm">
+        <Label key={key} variant="checkbox" size="sm">
             <Checkbox size="sm" checked={theme[key]} onChange={e => onChange({ ...theme, [key]: e.target.checked })} />
             <span>{label}</span>
         </Label>
@@ -125,7 +129,7 @@ export function ThemePanel(props: ThemePanelProps) {
         <Drawer open={props.open} onClose={props.onClose} placement="right" size="420px" backdropVariant="transparent">
             <DrawerHeader onClose={props.onClose}>Theme{props.themeName ? `: ${props.themeName}` : ''}</DrawerHeader>
             <DrawerBody>
-                <Accordion>
+                <Accordion className="alloy-theme">
                     <AccordionItem title="General graph settings" defaultOpen>
                         <Row label="Node colour palette">
                             <Select size="sm" fullWidth options={PALETTES.map(p => ({ value: p, label: p }))} value={theme.nodePalette} onChange={v => onChange({ ...theme, nodePalette: v as Palette })} />
@@ -156,11 +160,13 @@ export function ThemePanel(props: ThemePanelProps) {
                                 <Row label="Sig">
                                     <Select size="sm" fullWidth searchable options={subjects.sigs.map(s => ({ value: s, label: s }))} value={sigKey} onChange={setSig} />
                                 </Row>
-                                <Label variant="checkbox" size="sm">
-                                    <Checkbox size="sm" checked={theme.projection.includes(sigKey)}
-                                        onChange={e => onChange({ ...theme, projection: e.target.checked ? [...theme.projection, sigKey] : theme.projection.filter(t => t !== sigKey) })} />
-                                    <span>Project over this sig</span>
-                                </Label>
+                                <div className="alloy-theme-check">
+                                    <Label variant="checkbox" size="sm">
+                                        <Checkbox size="sm" checked={theme.projection.includes(sigKey)}
+                                            onChange={e => onChange({ ...theme, projection: e.target.checked ? [...theme.projection, sigKey] : theme.projection.filter(t => t !== sigKey) })} />
+                                        <span>Project over this sig</span>
+                                    </Label>
+                                </div>
                                 <NodeEditor settings={theme.types[sigKey] ?? {}} onChange={s => onChange({ ...theme, types: { ...theme.types, [sigKey]: s } })} />
                             </>
                             : <FormHelper>This instance has no sigs to customise.</FormHelper>}
@@ -193,10 +199,18 @@ export function ThemePanel(props: ThemePanelProps) {
                 <div className="alloy-theme-actions">
                     <Button size="sm" variant="secondary" onClick={props.onMagic}>Magic Layout</Button>
                     <Button size="sm" variant="secondary" onClick={props.onReset}>Reset</Button>
-                    <Button size="sm" variant="secondary" onClick={props.onLoad}>Load…</Button>
-                    <Button size="sm" variant="secondary" onClick={props.onLoadSample}>Load Sample…</Button>
-                    <Button size="sm" variant="secondary" onClick={() => props.onSave(true)}>Save As…</Button>
-                    <Button size="sm" variant="primary" onClick={() => props.onSave(false)}>Save</Button>
+                    <span className="alloy-theme-spacer" />
+                    <Dropdown placement="top-end" trigger={<Button size="sm" variant="secondary">Load <Icon name="chevron-up" /></Button>}>
+                        <Menu size="sm">
+                            <MenuItem onClick={props.onLoad}>Load Theme…</MenuItem>
+                            <MenuItem onClick={props.onLoadSample}>Load Sample Theme…</MenuItem>
+                        </Menu>
+                    </Dropdown>
+                    <ButtonGroup>
+                        <Button size="sm" variant="primary" onClick={() => props.onSave(false)}>Save</Button>
+                        <ButtonGroup.Dropdown size="sm" variant="primary" placement="top-end" ariaLabel="More save options"
+                            content={<Menu size="sm"><MenuItem onClick={() => props.onSave(true)}>Save Theme As…</MenuItem></Menu>} />
+                    </ButtonGroup>
                 </div>
             </DrawerFooter>
         </Drawer>
