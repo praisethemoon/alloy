@@ -40,6 +40,90 @@
                     "default": 300,
                     "minimum": 0,
                     "description": "Seconds a run or check may take before it is stopped; 0 means no limit. Also set with the 'Alloy: Set Run Timeout' command."
+                },
+                "alloy-lsp.analyzer.solver": {
+                    "type": "string",
+                    "default": "sat4j",
+                    "enum": ["sat4j", "sat4j.light", "sat4j.pmax", "minisat", "minisat.prover", "glucose", "lingeling.parallel"],
+                    "enumDescriptions": ["SAT4J (Java, works everywhere)", "SAT4J, light", "SAT4J, partial MaxSAT", "MiniSat (native)", "MiniSat with Unsat Core: reports the core of a holding check or a run with no instance", "Glucose (native)", "Lingeling, parallel (external)"],
+                    "description": "The SAT solver, as the Alloy app's Options > Solver."
+                },
+                "alloy-lsp.analyzer.skolemDepth": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "maximum": 4,
+                    "description": "Skolem depth, as the Alloy app's option."
+                },
+                "alloy-lsp.analyzer.recursionDepth": {
+                    "type": "integer",
+                    "default": 0,
+                    "enum": [0, 1, 2, 3],
+                    "enumDescriptions": ["Disabled", "1", "2", "3"],
+                    "description": "How far recursive predicates and functions are unrolled; 0 disables recursion. As the Alloy app's Recursion depth."
+                },
+                "alloy-lsp.analyzer.symmetry": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 0,
+                    "description": "How much effort symmetry breaking may take; 0 turns it off."
+                },
+                "alloy-lsp.analyzer.preventOverflows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Treat an arithmetic overflow as making the formula false, as the Alloy app's Prevent overflows."
+                },
+                "alloy-lsp.analyzer.maxMemoryMB": {
+                    "type": ["integer", "null"],
+                    "default": null,
+                    "minimum": 256,
+                    "description": "Maximum memory for the solver's JVM, in MB (java -Xmx); empty uses Java's default."
+                },
+                "alloy-lsp.analyzer.maxStackKB": {
+                    "type": ["integer", "null"],
+                    "default": null,
+                    "minimum": 1024,
+                    "description": "Maximum stack for the solver's JVM, in KB (java -Xss); empty uses Java's default."
+                },
+                "alloy-lsp.analyzer.unsatCoreMinimization": {
+                    "type": "string",
+                    "default": "fast",
+                    "enum": ["fast", "medium", "slow"],
+                    "enumDescriptions": ["Fast: the initial unsat core", "Medium", "Slow: guarantees a local minimum"],
+                    "description": "How much the unsat core is minimised (with MiniSat with Unsat Core)."
+                },
+                "alloy-lsp.analyzer.unsatCoreGranularity": {
+                    "type": "string",
+                    "default": "top-level",
+                    "enum": ["top-level", "flatten-once", "flatten-twice", "expand-quantifiers"],
+                    "enumDescriptions": ["Top-level conjuncts only", "Flatten the formula once at the beginning", "Flatten the formula at the beginning and after skolemizing", "In addition to flattening the formula twice, expand the quantifiers"],
+                    "description": "How finely the unsat core is reported."
+                },
+                "alloy-lsp.analyzer.decompose": {
+                    "type": "string",
+                    "default": "batch",
+                    "enum": ["batch", "hybrid", "parallel"],
+                    "description": "The decompose strategy of the solver."
+                },
+                "alloy-lsp.analyzer.inferPartialInstance": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Infer a partial instance from the model before solving."
+                },
+                "alloy-lsp.analyzer.recordKodkod": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Record the Kodkod input/output of each run, linked from the Alloy log."
+                },
+                "alloy-lsp.analyzer.allowWarnings": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Run models that have warnings; when off, a model with warnings is not run."
+                },
+                "alloy-lsp.analyzer.visualizeAutomatically": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Open the visualizer as soon as a run or check finds an instance."
                 }
             }
         },
@@ -59,7 +143,33 @@
             "command": "alloy-lsp.openInstanceXml",
             "title": "Open Instance XML...",
             "category": "Alloy"
+        }, {
+            "command": "alloy-lsp.showMetamodel",
+            "title": "Show Metamodel",
+            "category": "Alloy"
+        }, {
+            "command": "alloy-lsp.openSampleModels",
+            "title": "Open Sample Models...",
+            "category": "Alloy"
+        }, {
+            "command": "alloy-lsp.clearCore",
+            "title": "Clear Unsat Core",
+            "category": "Alloy"
         }],
+        "viewsContainers": {
+            "panel": [{
+                "id": "alloy-lsp",
+                "title": "Alloy",
+                "icon": "media/alloy.svg"
+            }]
+        },
+        "views": {
+            "alloy-lsp": [{
+                "type": "webview",
+                "id": "alloy-lsp.log",
+                "name": "Log"
+            }]
+        },
         "menus": {
             "commandPalette": [{
                 "command": "alloy-lsp.visualize",

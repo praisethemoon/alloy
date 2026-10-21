@@ -28,6 +28,10 @@ export interface SessionSolution {
     /** For an unsatisfiable command, the unsat core, when the solver reports one. */
     core?: SessionPosition[];
     durationMs?: number;
+    /** The Analyzer's warnings about the model, after a run. */
+    warnings?: Array<{ message: string, pos?: SessionPosition }>;
+    /** The Kodkod program of the run, when recordKodkod was on. */
+    kodkod?: string;
 }
 
 /** Options of a run, as the app's Options menu has them. */
@@ -42,6 +46,8 @@ export interface SessionRunOptions {
     inferPartialInstance?: boolean;
     decompose?: number;
     recordKodkod?: boolean;
+    /** When false, a model with warnings is not run, as the app's Allow warnings option. */
+    allowWarnings?: boolean;
 }
 
 /** The visualizer's ways to get another solution. */
@@ -58,6 +64,8 @@ export interface SessionLaunch {
     java?: string;
     jar: string;
     sessionJar: string;
+    /** Extra JVM options, such as the maximum memory and stack. */
+    jvmArgs?: string[];
 }
 
 /**
@@ -89,9 +97,14 @@ export class AlloySession {
         return (await this.request({ op: 'eval', expr, state })).value as string;
     }
 
-    /** The model's sigs and fields as instance XML, for Show Metamodel. */
-    async metamodel(): Promise<string> {
-        return (await this.request({ op: 'metamodel' })).xml as string;
+    /** The sigs and fields of the model in `file` (else the one last run) as instance XML, for Show Metamodel. */
+    async metamodel(file?: string): Promise<string> {
+        return (await this.request({ op: 'metamodel', file })).xml as string;
+    }
+
+    /** Copies the sample models inside the Alloy jar into `target`; returns how many files. */
+    async extractModels(target: string): Promise<number> {
+        return (await this.request({ op: 'models', target })).count as number;
     }
 
     /** The sample themes in the Alloy jar, by their path inside it, for Load Sample Theme. */
@@ -115,7 +128,7 @@ export class AlloySession {
 
     protected start(): ChildProcessWithoutNullStreams {
         const classpath = [this.launch.jar, this.launch.sessionJar].join(path.delimiter);
-        const child = spawn(this.launch.java || 'java', ['-Djava.awt.headless=true', '-cp', classpath, 'alloylsp.AlloySession']);
+        const child = spawn(this.launch.java || 'java', [...this.launch.jvmArgs ?? [], '-Djava.awt.headless=true', '-cp', classpath, 'alloylsp.AlloySession']);
         this.process = child;
         this.stderr = '';
         child.stderr.on('data', chunk => this.stderr = (this.stderr + chunk).slice(-4000));

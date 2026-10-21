@@ -88,11 +88,24 @@ describe.skipIf(!ready)("the Alloy session helper", () => {
         const plain = await session.run(staticModel, 1);
         expect([plain.kind, plain.satisfiable, plain.xml]).toEqual(["check", false, undefined]);
         await expect(session.move("next")).rejects.toThrow("This command is unsatisfiable, so there are no solutions to enumerate.");
-        // The 6.2.0 jar's API gives an empty core here even with minisat.prover (see T-19); the helper passes on what it gets.
-        const cored = await session.run(staticModel, 1, { solver: "minisat.prover" });
-        expect(cored.satisfiable).toBe(false);
-        expect(Array.isArray(cored.core)).toBe(true);
-        expect(cored.core!.every(p => p.line >= 1 && p.line <= 3)).toBe(true);
+    });
+
+    test("MiniSat's prover gives the unsat core: the facts that matter, not the others", { timeout: 120_000 }, async () => {
+        const pigeons = model("pigeons.als", `sig Pigeon { hole: one Hole }
+sig Hole {}
+fact injective { all disj p, q: Pigeon | p.hole != q.hole }
+fact unrelated { some Hole }
+run crowded {} for exactly 5 Pigeon, exactly 4 Hole
+`);
+        const session = open();
+        for (const coreMinimization of [0, 1, 2]) {
+            const result = await session.run(pigeons, 0, { solver: "minisat.prover", coreMinimization });
+            expect(result.satisfiable).toBe(false);
+            const lines = result.core!.map(p => p.line).sort();
+            expect(lines, `minimisation ${coreMinimization}`).toEqual([1, 3]);
+            expect(result.core!.find(p => p.line === 3)).toMatchObject({ column: 18, endLine: 3, endColumn: 57 });
+        }
+        expect((await session.run(pigeons, 0)).core).toEqual([]);
     });
 
     test("shows the metamodel", { timeout: 120_000 }, async () => {

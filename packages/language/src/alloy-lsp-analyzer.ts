@@ -82,10 +82,14 @@ export class AlloyAnalyzer {
         const result = document.uri.scheme === 'file'
             ? await this.runFile(document.uri.fsPath, index)
             : { error: 'Only models saved as files can be run.' };
-        const uri = document.uri.toString();
+        this.record(document.uri.toString(), index, result);
+        return result;
+    }
+
+    /** Records a command's outcome found elsewhere, such as by the editor's own session, for the lenses to show. */
+    record(uri: string, index: number, result: CommandResult): void {
         if (!this.results.has(uri)) this.results.set(uri, new Map());
         this.results.get(uri)!.set(index, result);
-        return result;
     }
 
     async runFile(file: string, index: number): Promise<CommandResult> {

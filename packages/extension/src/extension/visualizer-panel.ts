@@ -69,17 +69,28 @@ export class VisualizerPanel {
             vscode.window.showInformationMessage(`Alloy ${solution.kind} ${solution.command}: ${solution.kind === 'check' ? 'no counterexample' : 'no instance'} to visualize.`);
             return;
         }
+        VisualizerPanel.adopt(extensionUri, launch, session, solution, file);
+    }
+
+    /** Opens a solution a run already found, taking over its session, so nothing is solved twice. */
+    static adopt(extensionUri: vscode.Uri, launch: SessionLaunch, session: AlloySession, solution: SessionSolution, file: string): VisualizerPanel {
         const title = `${solution.kind} ${solution.command} · ${path.basename(file)}`;
         const panel = new VisualizerPanel(VisualizerPanel.createWebview(extensionUri, title), extensionUri, session, launch, title);
         panel.show(solution);
+        return panel;
+    }
+
+    /** Opens instance XML held in memory, such as a metamodel or a solution whose session is gone. */
+    static showXml(extensionUri: vscode.Uri, launch: SessionLaunch, xml: string, title: string): VisualizerPanel {
+        const panel = new VisualizerPanel(VisualizerPanel.createWebview(extensionUri, title), extensionUri, undefined, launch, title);
+        panel.post({ type: 'solution', xml, title, kind: 'run', live: false, incremental: false, newTraceAllowed: false });
+        return panel;
     }
 
     /** Opens an instance saved as XML; without a session, only its views and states can be explored. */
     static async openXml(extensionUri: vscode.Uri, launch: SessionLaunch, file: vscode.Uri): Promise<void> {
         const xml = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
-        const title = path.basename(file.fsPath);
-        const panel = new VisualizerPanel(VisualizerPanel.createWebview(extensionUri, title), extensionUri, undefined, launch, title);
-        panel.post({ type: 'solution', xml, title, kind: 'run', live: false, incremental: false, newTraceAllowed: false });
+        VisualizerPanel.showXml(extensionUri, launch, xml, path.basename(file.fsPath));
     }
 
     reveal(): void {

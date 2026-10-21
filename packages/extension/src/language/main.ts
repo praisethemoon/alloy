@@ -26,5 +26,11 @@ connection.onRequest('alloy/runCommand', async ({ uri, index }: { uri: string, i
     return { ...result, summary: describeOutcome(result) };
 });
 
+// Runs made by the editor's own session report their outcome here, for the lenses.
+connection.onNotification('alloy/commandOutcome', ({ uri, index, result }: { uri: string, index: number, result: CommandResult }) => {
+    AlloyLsp.analysis.Analyzer.record(uri, index, result);
+    connection.sendRequest('workspace/codeLens/refresh').catch(() => undefined);
+});
+
 // Start the language server with the shared services
 startLanguageServer(shared);

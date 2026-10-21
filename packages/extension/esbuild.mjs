@@ -46,10 +46,10 @@ const ctx = await esbuild.context({
     plugins
 });
 
-// The visualizer webview: React with baukasten-ui and Graphviz (WASM inlined), for the browser.
-// Its CSS imports are collected into out/webview/visualizer.css.
+// The webviews (the visualizer and the Alloy log): React with baukasten-ui, and Graphviz
+// (WASM inlined) for the visualizer, for the browser. CSS imports go to out/webview/<name>.css.
 const webview = await esbuild.context({
-    entryPoints: { visualizer: 'src/webview/main.tsx' },
+    entryPoints: { visualizer: 'src/webview/main.tsx', log: 'src/webview/log.tsx' },
     outdir: 'out/webview',
     bundle: true,
     target: 'ES2022',

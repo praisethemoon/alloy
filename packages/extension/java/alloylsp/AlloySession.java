@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import java.util.jar.JarFile;
 
 import edu.mit.csail.sdg.alloy4.A4Reporter;
 import edu.mit.csail.sdg.alloy4.Err;
+import edu.mit.csail.sdg.alloy4.ErrorWarning;
 import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4.Pos;
 import edu.mit.csail.sdg.ast.Command;
@@ -31,7 +33,17 @@ import edu.mit.csail.sdg.translator.A4Options;
 import edu.mit.csail.sdg.translator.A4Solution;
 import edu.mit.csail.sdg.translator.A4SolutionWriter;
 import edu.mit.csail.sdg.translator.TranslateAlloyToKodkod;
+import kodkod.ast.Formula;
+import kodkod.engine.PardinusSolver;
+import kodkod.engine.Proof;
+import kodkod.engine.Solution;
+import kodkod.engine.Solver;
+import kodkod.engine.config.ExtendedOptions;
+import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
+import kodkod.engine.ucore.RCEStrategy;
+import kodkod.engine.ucore.SCEStrategy;
+import kodkod.instance.PardinusBounds;
 
 /**
  * One live Alloy session for the editor. It runs a command and keeps its
@@ -49,6 +61,8 @@ public final class AlloySession {
     private A4Solution solution;
     /** Set by New Init and New Fork, cleared by a run and New Config: Kodkod can't find a new trace after those (VizGUI's seg_iteration). */
     private boolean segmented;
+    /** The run's core minimisation: 0 slow (RCE), 1 fast (SCE), 2 none, as A4Options has it. */
+    private int coreMinimization = 2;
 
     public static void main(String[] args) throws IOException {
         PrintStream protocol = new PrintStream(new FileOutputStream(FileDescriptor.out), true, StandardCharsets.UTF_8);
@@ -82,8 +96,9 @@ public final class AlloySession {
             case "run": return run(request);
             case "next": return next(request);
             case "eval": return eval(request);
-            case "metamodel": return metamodel();
+            case "metamodel": return metamodel(request);
             case "samples": return samples();
+            case "models": return models(request);
             default: throw new IllegalArgumentException("Unknown op " + op + ".");
         }
     }
@@ -93,7 +108,15 @@ public final class AlloySession {
         String file = string(request, "file", null);
         if (file == null) throw new IllegalArgumentException("run needs a file.");
         int index = integer(request, "command", 0);
-        world = CompUtil.parseEverything_fromFile(A4Reporter.NOP, null, file);
+        // The Analyzer's warnings, kept to report and, when warnings aren't allowed, to stop on.
+        List<ErrorWarning> warnings = new ArrayList<>();
+        A4Reporter reporter = new A4Reporter() {
+            @Override
+            public void warning(ErrorWarning warning) {
+                warnings.add(warning);
+            }
+        };
+        world = CompUtil.parseEverything_fromFile(reporter, null, file);
         List<Command> commands = world.getAllCommands();
         if (index < 0 || index >= commands.size()) {
             throw new IllegalArgumentException("The model has " + commands.size() + " commands; there is none with index " + index + ".");
@@ -110,15 +133,29 @@ public final class AlloySession {
         options.symmetry = integer(request, "symmetry", options.symmetry);
         options.noOverflow = bool(request, "noOverflow", options.noOverflow);
         options.coreMinimization = integer(request, "coreMinimization", options.coreMinimization);
+        coreMinimization = options.coreMinimization;
         options.coreGranularity = integer(request, "coreGranularity", options.coreGranularity);
         options.inferPartialInstance = bool(request, "inferPartialInstance", options.inferPartialInstance);
         options.decompose_mode = integer(request, "decompose", options.decompose_mode);
         options.recordKodkod = bool(request, "recordKodkod", options.recordKodkod);
+        if (!bool(request, "allowWarnings", true) && !warnings.isEmpty()) {
+            throw warnings.get(0);
+        }
         long start = System.currentTimeMillis();
-        solution = TranslateAlloyToKodkod.execute_commandFromBook(A4Reporter.NOP, world.getAllReachableSigs(), command, options);
+        solution = TranslateAlloyToKodkod.execute_commandFromBook(reporter, world.getAllReachableSigs(), command, options);
         segmented = false;
         Map<String, Object> result = describe();
         result.put("durationMs", System.currentTimeMillis() - start);
+        List<Object> reported = new ArrayList<>();
+        for (ErrorWarning warning : warnings) {
+            Map<String, Object> w = new LinkedHashMap<>();
+            w.put("message", warning.msg.trim());
+            if (warning.pos != null && warning.pos != Pos.UNKNOWN) w.put("pos", position(warning.pos));
+            reported.add(w);
+        }
+        result.put("warnings", reported);
+        // Record the Kodkod input/output: the Java program the app links as "Predicate".
+        if (options.recordKodkod) result.put("kodkod", solution.debugExtractKInput());
         return result;
     }
 
@@ -165,8 +202,10 @@ public final class AlloySession {
         return result;
     }
 
-    /** The model's sigs and fields as an instance XML, which Show Metamodel draws. */
-    private Map<String, Object> metamodel() throws Exception {
+    /** The model's sigs and fields as an instance XML, which Show Metamodel draws: of `file` if given, else of the model last run. */
+    private Map<String, Object> metamodel(Map<String, Object> request) throws Exception {
+        String file = string(request, "file", null);
+        if (file != null) world = CompUtil.parseEverything_fromFile(A4Reporter.NOP, null, file);
         if (world == null) throw new IllegalStateException("Nothing has been run yet.");
         StringWriter xml = new StringWriter();
         try (PrintWriter out = new PrintWriter(xml)) {
@@ -195,6 +234,29 @@ public final class AlloySession {
         return result;
     }
 
+    /** Copies the sample models inside the Alloy jar under `target`, as the app's Open Sample Models offers them. */
+    private Map<String, Object> models(Map<String, Object> request) throws Exception {
+        String target = string(request, "target", null);
+        if (target == null) throw new IllegalArgumentException("models needs a target folder.");
+        File root = new File(target).getCanonicalFile();
+        int count = 0;
+        File jar = new File(CompUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        try (JarFile archive = new JarFile(jar)) {
+            for (JarEntry entry : java.util.Collections.list(archive.entries())) {
+                if (!entry.getName().startsWith("models/") || entry.isDirectory()) continue;
+                File out = new File(root, entry.getName().substring("models/".length())).getCanonicalFile();
+                if (!out.toPath().startsWith(root.toPath())) continue;
+                out.getParentFile().mkdirs();
+                Files.write(out.toPath(), archive.getInputStream(entry).readAllBytes());
+                count++;
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("folder", root.getPath());
+        result.put("count", count);
+        return result;
+    }
+
     private Map<String, Object> describe() throws Exception {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("command", command.label);
@@ -214,12 +276,78 @@ public final class AlloySession {
             }
         } else {
             Pair<Set<Pos>, Set<Pos>> core = solution.highLevelCore();
+            Set<Pos> found = new java.util.LinkedHashSet<>(core.a);
+            found.addAll(core.b);
+            if (found.isEmpty()) found = recomputedCore();
             List<Object> positions = new ArrayList<>();
-            for (Pos pos : core.a) positions.add(position(pos));
-            for (Pos pos : core.b) positions.add(position(pos));
+            for (Pos pos : found) positions.add(position(pos));
             result.put("core", positions);
         }
         return result;
+    }
+
+    /**
+     * The unsat core, solved for again. A4Solution's own core is always empty
+     * in 6.2.0: its Kodkod solution comes from the incremental enumerator, and
+     * MiniSat's prover is freed before its trace can be read (see CoreProver).
+     * So the same formulas and bounds are solved once more with a CoreProver,
+     * the proof minimised as the options say (RCE slow, SCE fast), and the core
+     * mapped back to Alloy positions through A4Solution's k2pos, as it does.
+     * Empty unless the solver is a prover.
+     */
+    @SuppressWarnings("unchecked")
+    private Set<Pos> recomputedCore() {
+        Set<Pos> positions = new java.util.LinkedHashSet<>();
+        CoreProver prover = null;
+        try {
+            PardinusSolver solver = (PardinusSolver) field("solver");
+            ExtendedOptions options = solver.options();
+            if (!options.solver().prover()) return positions;
+            prover = new CoreProver(options.solver());
+            Formula formula = Formula.and((List<Formula>) field("formulas"));
+            PardinusBounds bounds = (PardinusBounds) field("bounds");
+            Map<Formula, Object> k2pos = (Map<Formula, Object>) field("k2pos");
+            Solution plain;
+            if (options.temporal()) {
+                ExtendedOptions again = new ExtendedOptions(options);
+                again.setSolver(prover);
+                plain = new PardinusSolver(again).solve(formula, bounds);
+            } else {
+                Options again = new Options();
+                again.setSolver(prover);
+                again.setLogTranslation(2);
+                again.setCoreGranularity(options.coreGranularity());
+                again.setSkolemDepth(options.skolemDepth());
+                again.setSymmetryBreaking(options.symmetryBreaking());
+                again.setBitwidth(options.bitwidth());
+                again.setNoOverflow(options.noOverflow());
+                plain = new Solver(again).solve(formula, bounds);
+            }
+            Proof proof = plain.proof();
+            if (proof == null) return positions;
+            if (coreMinimization == 0) proof.minimize(new RCEStrategy(proof.log()));
+            else if (coreMinimization == 1) proof.minimize(new SCEStrategy(proof.log()));
+            for (Map.Entry<Formula, kodkod.ast.Node> entry : proof.highLevelCore().entrySet()) {
+                addPosition(positions, k2pos.get(entry.getKey()));
+                if (entry.getValue() instanceof Formula) addPosition(positions, k2pos.get((Formula) entry.getValue()));
+            }
+        } catch (Exception | LinkageError e) {
+            System.err.println("The unsat core could not be computed: " + e);
+        } finally {
+            if (prover != null) prover.release();
+        }
+        return positions;
+    }
+
+    private static void addPosition(Set<Pos> positions, Object origin) {
+        Pos pos = origin instanceof Pos ? (Pos) origin : origin instanceof Expr ? ((Expr) origin).span() : null;
+        if (pos != null && pos != Pos.UNKNOWN) positions.add(pos);
+    }
+
+    private Object field(String name) throws ReflectiveOperationException {
+        Field field = A4Solution.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(solution);
     }
 
     private static Map<String, Object> position(Pos pos) {
