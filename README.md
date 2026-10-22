@@ -13,33 +13,23 @@ project.
 
 <img src="assets/editor.webp" alt="An Alloy model in VS Code, with its outline, code lenses and a finished run" width="720">
 
-## What it does
+## Features
 
-Errors as you type, checked against the Alloy Analyzer on the AlloyTools model
-corpus. Go to definition, references, hover, completion, rename, formatting,
-and the inferred types of `let` bindings as hints.
+- **Diagnostics as you type**, checked against the Alloy Analyzer on the
+  AlloyTools model corpus.
+- **Navigation and editing:** go to definition, references, hover,
+  completion, rename, an outline, formatting, and inferred types as hints.
+- **Run and check** from a code lens above every command.
+- **The Alloy app's visualizer:** graph, text, table and tree views, traces
+  state by state, and **New** for another solution, trace, initial state or
+  fork. The graph is drawn in your editor's colours, with nodes you can drag.
+- **The evaluator**, in the state you're on.
+- **Themes** (`.thm` files) with projection and **Magic Layout**, and export.
+- **Unsat cores** of a holding check (with the MiniSat with Unsat Core
+  solver), the metamodel, the app's sample models, its solver options as
+  settings, and its output in a log panel.
 
-Every `run` and `check` has a code lens above it. A run opens the visualizer
-with the instance; a trace shows the state you're on beside the next one, and
-**New** asks for another solution, trace, initial state or fork, as the app's
-buttons do.
-
-<img src="assets/traffic.webp" alt="A trace of the traffic light model" width="720">
-
-Themes work as in the app: `.thm` files load and save, with projection, and
-**Magic Layout** makes one for you. The graph is drawn in your editor's
-colours; drag nodes around, zoom, and hover an atom to see its relations.
-
-<img src="assets/theme.webp" alt="The theme panel" width="720">
-
-The evaluator answers expressions and formulas in the state you're on.
-Double-click an atom in the graph to put its name there.
-
-<img src="assets/evaluator.webp" alt="The evaluator" width="720">
-
-There's also the Alloy app's solver options as settings (`alloy-lsp.analyzer.*`),
-its output in a log panel, the unsat core of a check that holds (with the
-MiniSat with Unsat Core solver), the metamodel, and the app's sample models.
+<img src="assets/visualizer.webp" alt="A run's instance in the visualizer, beside the model" width="720">
 
 ## Before you install
 
