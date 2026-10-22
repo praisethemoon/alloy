@@ -6,8 +6,10 @@ language server that knows the language, and the Alloy app's visualizer,
 evaluator and themes, so you don't have to leave the editor to run a command
 and look at what it found.
 
-It ships Alloy 6.2.0 and runs it as is, so what you get is what the Alloy app
-gives you. This is not an official AlloyTools project.
+The language server is powered by [Langium](https://langium.org). Running
+commands uses Alloy 6.2.0, which the extension ships and runs as is, so what
+you get is what the Alloy app gives you. This is not an official AlloyTools
+project.
 
 ## What it does
 
