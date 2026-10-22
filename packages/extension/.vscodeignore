@@ -1,2 +1,17 @@
-.vscode/**
-.vscode-test/**
+# The VSIX holds only what the extension runs and the documents the
+# Marketplace shows: everything else is left out, then these are let back in
+# (vsce applies the exceptions last, so they name what to ship, maps excepted).
+**
+!package.json
+!out/**/*.cjs
+!out/**/*.js
+!out/**/*.css
+!alloy/alloy.jar
+!alloy/alloy-session.jar
+!media/**
+!syntaxes/**
+!language-configuration.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md

@@ -1,0 +1,102 @@
+# A version tag (v0.1.0) builds the extension, tests it, packages one .vsix
+# for every platform (the language server is JavaScript and the Analyzer runs
+# on the user's Java) and attaches it to a GitHub release for the tag. Run by
+# hand, it builds, tests and keeps the package as the run's artifact,
+# releasing nothing.
+#
+# The build fetches Alloy 6.2.0 (scripts/fetch-alloy.mjs checks its SHA-256)
+# and compiles the Java session helper against it, so it needs a JDK. The jar
+# tests skip when the jar is missing, so the build is checked for both jars
+# before the tests run.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: version
+        name: Check the tag against the extension's version
+        run: |
+          version=$(node -p 'require("./packages/extension/package.json").version')
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the extension's version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+
+      - name: Build
+        run: |
+          # The parser and the TextMate grammar are generated, not committed.
+          npm run langium:generate
+          npx tsc -b tsconfig.build.json
+          npm run build --workspace packages/extension
+          ls -l packages/extension/alloy/alloy.jar packages/extension/alloy/alloy-session.jar
+
+      - name: Test
+        run: |
+          npm test
+          npm run test:oracle
+
+      - name: Package
+        run: |
+          npm run package --workspace packages/extension
+          mkdir vsix && mv packages/extension/alloy-*.vsix vsix/
+          ls -l vsix
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vsix
+          path: vsix/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: vsix
+          path: vsix
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          cat > notes.md <<EOF
+          Install \`alloy-$VERSION.vsix\` with **Extensions: Install from VSIX…**. It works on
+          every platform; running commands needs Java 17 or later on the PATH (or set
+          \`alloy-lsp.analyzer.java\`). What changed is in the
+          [CHANGELOG](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md).
+          EOF
+          gh release create "$GITHUB_REF_NAME" vsix/*.vsix \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Alloy $VERSION" \
+            --notes-file notes.md

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<!-- The Marketplace icon: an Alloy 6 trace, three states that loop back, on the gold of Alloy's default nodes. -->
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerUnits="userSpaceOnUse" markerWidth="30" markerHeight="30" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2b2b2b"/></marker></defs>
+<rect width="256" height="256" rx="52" fill="#f2c94c"/>
+<g stroke="#2b2b2b" stroke-width="8" fill="none" stroke-linecap="round">
+<path d="M78 150 H96" marker-end="url(#arrow)"/><path d="M146 150 H164" marker-end="url(#arrow)"/>
+<path d="M196 122 C 196 60, 130 60, 128 116" marker-end="url(#arrow)"/></g>
+<g fill="#2b2b2b"><circle cx="54" cy="150" r="24"/><circle cx="122" cy="150" r="24"/><circle cx="190" cy="150" r="24"/></g>
+</svg>

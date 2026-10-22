@@ -1,14 +1,40 @@
 {
-    "name": "vscode-alloy-lsp",
-    "description": "The extension specific package",
-    "version": "0.0.1",
-    "displayName": "alloy-lsp",
+    "name": "alloy",
+    "displayName": "Alloy",
+    "description": "Alloy 6 in VS Code: a language server, and the Alloy app's visualizer, evaluator and themes, running the bundled Alloy 6.2.0.",
+    "version": "0.1.0",
+    "publisher": "praisethemoon",
+    "license": "MIT",
+    "icon": "media/icon.png",
+    "galleryBanner": {
+        "color": "#f2c94c",
+        "theme": "light"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/praisethemoon/alloy"
+    },
+    "homepage": "https://github.com/praisethemoon/alloy#readme",
+    "bugs": {
+        "url": "https://github.com/praisethemoon/alloy/issues"
+    },
+    "keywords": [
+        "alloy",
+        "alloy6",
+        "formal methods",
+        "specification",
+        "model checking",
+        "relational logic",
+        "language server"
+    ],
     "type": "module",
     "engines": {
         "vscode": "^1.91.0"
     },
     "categories": [
-        "Programming Languages"
+        "Programming Languages",
+        "Linters",
+        "Visualization"
     ],
     "contributes": {
         "languages": [{
@@ -194,6 +220,7 @@
         "build:session": "node scripts/build-session.mjs",
         "build": "npm run fetch:alloy && npm run build:session && npm run build:prepare && tsc -b tsconfig.json tsconfig.webview.json && node esbuild.mjs",
         "build:clean": "npm run clean && npm run build",
+        "package": "node scripts/package.mjs",
         "test": "vitest run",
         "watch": "npm run build:prepare && concurrently -n tsc,esbuild -c blue,yellow \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\""
     },
@@ -211,6 +238,7 @@
         "@types/react": "19.3.0",
         "@types/react-dom": "19.3.0",
         "@types/vscode": "~1.91.0",
+        "@vscode/vsce": "4.0.0",
         "concurrently": "~10.0.4",
         "esbuild": "0.28.2",
         "vitest": "4.1.10"

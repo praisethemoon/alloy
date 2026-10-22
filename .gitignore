@@ -14,3 +14,7 @@ syntaxes/
 packages/language/test/corpus/models/
 # The Alloy jar the extension ships, fetched by packages/extension/scripts/fetch-alloy.mjs
 packages/extension/alloy/
+# Copied into the extension by its package script, from the repository root
+packages/extension/README.md
+packages/extension/CHANGELOG.md
+packages/extension/LICENSE
