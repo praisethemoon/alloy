@@ -146,3 +146,23 @@ run crowded {} for exactly 5 Pigeon, exactly 4 Hole
         await expect(session.run(staticModel, 0)).rejects.toThrow("Could not start the Alloy session (/nonexistent/java)");
     });
 });
+
+describe("restarting the helper", () => {
+    // A stand-in helper, run in place of java: it answers every request after a
+    // pause, so a killed helper's exit always arrives before its successor replies.
+    const slowHelper = path.join(folder, "slow-helper.cjs");
+    fs.writeFileSync(slowHelper, `#!/usr/bin/env node
+require("node:readline").createInterface({ input: process.stdin }).on("line", line => {
+    const { id } = JSON.parse(line);
+    setTimeout(() => process.stdout.write(JSON.stringify({ id, ok: true, value: "answer" }) + "\\n"), 500);
+});
+`, { mode: 0o755 });
+
+    test("the old helper's exit does not fail the new helper's requests", async () => {
+        const session = new AlloySession({ java: slowHelper, jar: "unused.jar", sessionJar: "unused.jar" });
+        sessions.push(session);
+        expect(await session.evaluate("x")).toBe("answer");
+        session.dispose();
+        expect(await session.evaluate("x")).toBe("answer");
+    });
+});

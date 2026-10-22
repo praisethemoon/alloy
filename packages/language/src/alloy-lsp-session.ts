@@ -79,7 +79,8 @@ export class AlloySession {
 
     protected process?: ChildProcessWithoutNullStreams;
     protected nextId = 1;
-    protected readonly pending = new Map<number, { resolve: (reply: Record<string, unknown>) => void, reject: (error: Error) => void }>();
+    /** Requests awaiting a reply, each with the helper process it was sent to. */
+    protected readonly pending = new Map<number, { child: ChildProcessWithoutNullStreams, resolve: (reply: Record<string, unknown>) => void, reject: (error: Error) => void }>();
     protected stderr = '';
 
     constructor(protected readonly launch: SessionLaunch) {}
@@ -121,7 +122,7 @@ export class AlloySession {
         const child = this.process ?? this.start();
         const id = this.nextId++;
         return new Promise((resolve, reject) => {
-            this.pending.set(id, { resolve, reject });
+            this.pending.set(id, { child, resolve, reject });
             child.stdin.write(JSON.stringify({ id, ...body }) + '\n');
         });
     }
@@ -137,8 +138,13 @@ export class AlloySession {
         readline.createInterface({ input: child.stdout }).on('line', line => this.receive(line));
         const fail = (error: Error) => {
             if (this.process === child) this.process = undefined;
-            for (const { reject } of this.pending.values()) reject(error);
-            this.pending.clear();
+            // Only this helper's own requests: after a restart, the old helper's exit
+            // arrives while the new one already has requests of its own.
+            for (const [id, request] of this.pending) {
+                if (request.child !== child) continue;
+                this.pending.delete(id);
+                request.reject(error);
+            }
         };
         child.on('error', error => fail(new SessionError(`Could not start the Alloy session (${this.launch.java || 'java'}): ${error.message}`)));
         child.on('exit', code => fail(new SessionError(`The Alloy session stopped (exit code ${code}). ${lastLine(this.stderr)}`.trim())));
