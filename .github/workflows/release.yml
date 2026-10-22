@@ -98,5 +98,5 @@ jobs:
           EOF
           gh release create "$GITHUB_REF_NAME" vsix/*.vsix \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Alloy $VERSION" \
+            --title "Alloy Workbench $VERSION" \
             --notes-file notes.md

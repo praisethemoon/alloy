@@ -1,6 +1,6 @@
 {
     "name": "alloy",
-    "displayName": "Alloy",
+    "displayName": "Alloy Workbench",
     "description": "Alloy 6 in VS Code: a language server, and the Alloy app's visualizer, evaluator and themes, running the bundled Alloy 6.2.0.",
     "version": "0.1.0",
     "publisher": "praisethemoon",

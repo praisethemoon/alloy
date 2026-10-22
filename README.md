@@ -1,5 +1,5 @@
-# Alloy for VS Code
-  <img src="packages/extension/media/icon.png" alt="Alloy" width="96" align="right">
+# Alloy Workbench
+  <img src="packages/extension/media/icon.png" alt="Alloy Workbench" width="96" align="right">
 
 An extension for writing [Alloy 6](https://alloytools.org) models in VS Code: a
 language server that knows the language, and the Alloy app's visualizer,
