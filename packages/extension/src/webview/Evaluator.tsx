@@ -14,11 +14,13 @@ export interface Evaluation {
  * The app's Evaluator: type an Alloy expression or formula and see its value
  * in the focused state; UP and DOWN recall earlier inputs.
  */
-export function Evaluator({ evaluations, temporal, focus, disabled, onEvaluate, onClear, onClose }: {
+export function Evaluator({ evaluations, temporal, focus, disabled, insert, onEvaluate, onClear, onClose }: {
     evaluations: Evaluation[];
     temporal: boolean;
     focus: number;
     disabled?: string;
+    /** Text to add to the input, such as an atom double-clicked in the graph; a new key adds it again. */
+    insert?: { text: string, key: number };
     onEvaluate: (expr: string) => void;
     onClear: () => void;
     onClose: () => void;
@@ -26,6 +28,13 @@ export function Evaluator({ evaluations, temporal, focus, disabled, onEvaluate, 
     const [text, setText] = useState('');
     const [recall, setRecall] = useState<number>();
     const log = useRef<HTMLDivElement>(null);
+    const section = useRef<HTMLElement>(null);
+    useEffect(() => {
+        if (!insert) return;
+        setText(current => current.trim() ? `${current.trimEnd()} ${insert.text}` : insert.text);
+        // baukasten's Input takes no ref, so it is found in the section.
+        section.current?.querySelector('input')?.focus();
+    }, [insert]);
     useEffect(() => { log.current?.scrollTo({ top: log.current.scrollHeight }); }, [evaluations]);
     const inputs = evaluations.map(e => e.expr);
 
@@ -46,7 +55,7 @@ export function Evaluator({ evaluations, temporal, focus, disabled, onEvaluate, 
     };
 
     return (
-        <section className="alloy-evaluator" aria-label="Evaluator">
+        <section ref={section} className="alloy-evaluator" aria-label="Evaluator">
             <header className="alloy-evaluator-header">
                 <strong>Evaluator</strong>
                 <span className="alloy-muted">{temporal ? `in state ${focus}; x' is state ${focus}'s successor` : 'in this instance'}</span>

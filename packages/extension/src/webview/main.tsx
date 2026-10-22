@@ -52,6 +52,12 @@ function App() {
     const [themeLabel, setThemeLabel] = useState<string | undefined>(saved.themeName);
     const [themeOpen, setThemeOpen] = useState(false);
     const [picks, setPicks] = useState<Record<string, string>>({});
+    const [insert, setInsert] = useState<{ text: string, key: number }>();
+    // Double-clicking an atom in the graph opens the evaluator with the atom's name, as the evaluator writes it (Node$1).
+    const evaluateAtom = (atom: string) => {
+        setEvaluatorOpen(true);
+        setInsert({ text: atom, key: Date.now() });
+    };
     const [shown, setShown] = useState<Shown>();
     const [focus, setFocus] = useState(0);
     const [busy, setBusy] = useState(false);
@@ -155,18 +161,18 @@ function App() {
                 <SplitPane.Pane preferredSize={0.5} minSize={160}>
                     <div className="alloy-state">
                         <div className="alloy-state-title">State {focus}</div>
-                        <div className="alloy-state-body"><StateView state={instance.states[focus]} view={view} theme={theme} picks={shownPicks} /></div>
+                        <div className="alloy-state-body"><StateView state={instance.states[focus]} view={view} theme={theme} picks={shownPicks} onAtom={evaluateAtom} /></div>
                     </div>
                 </SplitPane.Pane>
                 <SplitPane.Pane minSize={160}>
                     <div className="alloy-state">
                         <div className="alloy-state-title">State {next}{next <= focus ? ' (loop)' : ''}</div>
-                        <div className="alloy-state-body"><StateView state={instance.states[next]} view={view} theme={theme} picks={shownPicks} /></div>
+                        <div className="alloy-state-body"><StateView state={instance.states[next]} view={view} theme={theme} picks={shownPicks} onAtom={evaluateAtom} /></div>
                     </div>
                 </SplitPane.Pane>
             </SplitPane>
         )
-        : <StateView state={instance.states[0]} view={view} theme={theme} picks={shownPicks} />;
+        : <StateView state={instance.states[0]} view={view} theme={theme} picks={shownPicks} onAtom={evaluateAtom} />;
 
     return (
         <div className="alloy-app">
@@ -220,6 +226,7 @@ function App() {
                                     temporal={temporal}
                                     focus={focus}
                                     disabled={meta.live ? undefined : 'Opened from a file: there is no solver to evaluate with.'}
+                                    insert={insert}
                                     onEvaluate={evaluate}
                                     onClear={() => setEvaluations([])}
                                     onClose={() => setEvaluatorOpen(false)}

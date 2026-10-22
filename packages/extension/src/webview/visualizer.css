@@ -76,11 +76,41 @@ body {
     min-height: 0;
 }
 
-.alloy-graph svg {
+.alloy-canvas {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.alloy-canvas:active {
+    cursor: grabbing;
+}
+
+.alloy-canvas svg {
     display: block;
-    margin: 0 auto;
-    max-width: 100%;
-    height: auto;
+}
+
+.alloy-canvas text {
+    font-family: var(--bk-font-family-sans);
+}
+
+/* A halo in the background colour keeps labels readable where they cross edges. */
+.alloy-canvas-edge-label {
+    paint-order: stroke;
+    stroke: var(--bk-color-background);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.alloy-canvas-node {
+    cursor: pointer;
+}
+
+.alloy-canvas-node:hover {
+    filter: drop-shadow(0 0 3px var(--bk-color-focus-border, var(--bk-color-primary)));
 }
 
 .alloy-tree, .alloy-tree ul {
@@ -152,11 +182,6 @@ body {
     white-space: pre-wrap;
 }
 
-.alloy-graph-frame {
-    position: relative;
-    height: 100%;
-}
-
 .alloy-zoom {
     position: absolute;
     top: var(--bk-spacing-1);
@@ -167,10 +192,6 @@ body {
     background: var(--bk-color-background-elevated);
     border: var(--bk-border-width-1) solid var(--bk-color-border);
     border-radius: var(--bk-radius-md);
-}
-
-.alloy-graph:not(.alloy-graph-fit) svg {
-    max-width: none;
 }
 
 .alloy-projection {
