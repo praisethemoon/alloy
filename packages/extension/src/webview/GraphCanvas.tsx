@@ -189,9 +189,9 @@ export function GraphCanvas({ layout, onAtom }: { layout: GraphLayout, onAtom?: 
             )}
             <div className="alloy-zoom" role="group" aria-label="Zoom">
                 <Tooltip content="Zoom out" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="zoom-out" />} aria-label="Zoom out" onClick={() => zoomAt(1 / 1.25, width / 2, height / 2)} /></Tooltip>
+                <Tooltip content="Zoom in" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="zoom-in" />} aria-label="Zoom in" onClick={() => zoomAt(1.25, width / 2, height / 2)} /></Tooltip>
                 <Tooltip content="Fit to the window" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="screen-normal" />} aria-label="Fit to the window" onClick={() => size && setView(fitView(layout, size.width, size.height))} /></Tooltip>
                 <Tooltip content="Actual size" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="screen-full" />} aria-label="Actual size" onClick={() => setView({ scale: 1, x: MARGIN, y: MARGIN })} /></Tooltip>
-                <Tooltip content="Zoom in" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="zoom-in" />} aria-label="Zoom in" onClick={() => zoomAt(1.25, width / 2, height / 2)} /></Tooltip>
                 <Tooltip content="Put the nodes back" placement="left"><IconButton size="sm" variant="ghost" icon={<Icon name="discard" />} aria-label="Put the nodes back" disabled={Object.keys(moved).length === 0} onClick={() => setMoved({})} /></Tooltip>
             </div>
         </div>
