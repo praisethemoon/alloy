@@ -29,11 +29,18 @@ body {
 
 .alloy-toolbar {
     display: flex;
+    /* Wrapped onto more rows in a narrow pane, it keeps their height rather than letting the graph squeeze it. */
+    flex-shrink: 0;
     align-items: center;
     flex-wrap: wrap;
     gap: var(--bk-gap-sm);
     padding: var(--bk-padding-sm);
     border-bottom: var(--bk-border-width-1) solid var(--bk-color-border);
+}
+
+.alloy-toolbar-separator {
+    display: flex;
+    height: var(--bk-spacing-5);
 }
 
 .alloy-progress-space {

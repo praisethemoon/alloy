@@ -43,6 +43,15 @@ export interface ToolbarProps {
     onExport: (kind: Exclude<SaveKind, 'theme'>) => void;
 }
 
+/**
+ * A divider between groups. baukasten's vertical Divider takes its parent's
+ * full height, which in a toolbar that wraps would be the toolbar's own; the
+ * span gives it a button's height instead.
+ */
+function Separator() {
+    return <span className="alloy-toolbar-separator"><Divider orientation="vertical" spacing="var(--bk-spacing-1)" /></span>;
+}
+
 export function Toolbar(props: ToolbarProps) {
     const { view, onView, temporal, noEnumeration, newTraceAllowed, busy, onMove } = props;
     const moveDisabled = busy || !!noEnumeration;
@@ -54,7 +63,7 @@ export function Toolbar(props: ToolbarProps) {
                         {v.label}
                     </Button>))}
             </ButtonGroup>
-            <Divider orientation="vertical" spacing="var(--bk-spacing-1)" />
+            <Separator />
             {tip(props.themeOpen ? 'Close the theme customization panel' : 'Open the theme customization panel',
                 <Button size="sm" variant={props.themeOpen ? 'primary' : 'secondary'} aria-pressed={props.themeOpen} onClick={props.onToggleTheme}>
                     <Icon name="symbol-color" /> Theme
@@ -68,12 +77,12 @@ export function Toolbar(props: ToolbarProps) {
                     <MenuItem onClick={() => props.onExport('predicate')}>Instance as predicate…</MenuItem>
                 </Menu>
             </Dropdown>
-            <Divider orientation="vertical" spacing="var(--bk-spacing-1)" />
+            <Separator />
             {tip(props.evaluatorOpen ? 'Close the evaluator' : 'Open the evaluator',
                 <Button size="sm" variant={props.evaluatorOpen ? 'primary' : 'secondary'} aria-pressed={props.evaluatorOpen} onClick={props.onToggleEvaluator}>
                     <Icon name="terminal" /> Evaluator
                 </Button>)}
-            <Divider orientation="vertical" spacing="var(--bk-spacing-1)" />
+            <Separator />
             {temporal
                 ? TRACE_MOVES.map(m => {
                     const blocked = noEnumeration ?? (m.move === 'trace' && !newTraceAllowed ? 'A new trace can\'t follow New Init or New Fork; use New Config first.' : undefined);
@@ -89,7 +98,7 @@ export function Toolbar(props: ToolbarProps) {
                         </Button>
                     </span>)}
             {temporal && <>
-                <Divider orientation="vertical" spacing="var(--bk-spacing-1)" />
+                <Separator />
                 {tip('Show the previous state',
                     <span><IconButton size="sm" variant="ghost" icon={<Icon name="arrow-left" />} aria-label="Show the previous state" disabled={!props.canPrevious} onClick={props.onPrevious} /></span>)}
                 {tip('Show the next state',
