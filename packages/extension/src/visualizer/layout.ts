@@ -39,6 +39,8 @@ export interface LayoutNode {
     dotted: boolean;
     bold: boolean;
     texts: LayoutText[];
+    /** The theme colour the dot names (tone-yellow, …), for drawing in the editor's colours. */
+    tone?: string;
 }
 
 export interface LayoutEdge {
@@ -54,6 +56,8 @@ export interface LayoutEdge {
     dotted: boolean;
     bold: boolean;
     label?: LayoutText;
+    /** The theme colour the dot names (tone-red, tone-magic-2, …). */
+    tone?: string;
 }
 
 export interface GraphLayout {
@@ -83,6 +87,7 @@ interface GvObject {
     width?: string;
     height?: string;
     shape?: string;
+    class?: string;
     _draw_?: DrawOp[];
     _ldraw_?: DrawOp[];
 }
@@ -91,6 +96,7 @@ interface GvEdge {
     _gvid: number;
     tail: number;
     head: number;
+    class?: string;
     _draw_?: DrawOp[];
     _hdraw_?: DrawOp[];
     _tdraw_?: DrawOp[];
@@ -171,7 +177,8 @@ export function parseLayout(json: string): GraphLayout {
             dashed: shape.styles.has('dashed'),
             dotted: shape.styles.has('dotted'),
             bold: shape.styles.has('bold'),
-            texts: label.texts
+            texts: label.texts,
+            tone: object.class
         });
     }
     const edges: LayoutEdge[] = (graph.edges ?? []).map(edge => {
@@ -190,7 +197,8 @@ export function parseLayout(json: string): GraphLayout {
             dashed: line.styles.has('dashed'),
             dotted: line.styles.has('dotted'),
             bold: line.styles.has('bold'),
-            label: interpret(edge._ldraw_, flip).texts[0]
+            label: interpret(edge._ldraw_, flip).texts[0],
+            tone: edge.class
         };
     });
     return { width: x1 - x0, height: y1 - y0, nodes, edges };
@@ -226,16 +234,4 @@ export function movedEdge(edge: LayoutEdge, tail: Point, head: Point): LayoutEdg
             return { ...edge.label, x, y };
         })()
     };
-}
-
-/** Whether text on a fill reads better dark than light (WCAG relative luminance). */
-export function prefersDarkText(fill: string): boolean {
-    const hex = /^#([0-9a-f]{6})/i.exec(fill);
-    if (!hex) return true;
-    const channel = (i: number) => {
-        const c = parseInt(hex[1].slice(i, i + 2), 16) / 255;
-        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    };
-    const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
-    return luminance > 0.179;
 }

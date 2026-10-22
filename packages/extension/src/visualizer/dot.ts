@@ -174,7 +174,9 @@ export function instanceToDot(state: AlloyState, theme: Theme = emptyTheme()): s
             ensure(to);
         }
         for (const edge of arcs) {
-            const attrs = [`label=${quote(edge.label)}`, `color=${quote(colour)}`, `fontcolor=${quote(colour)}`, `style=${style}`];
+            // The class names the theme's colour, so the graph view can draw it in the editor's own colours.
+            const tone = color === 'Magic' ? `tone-magic-${index}` : `tone-${color.toLowerCase()}`;
+            const attrs = [`label=${quote(edge.label)}`, `color=${quote(colour)}`, `fontcolor=${quote(colour)}`, `style=${style}`, `class=${quote(tone)}`];
             if (weight) attrs.push(`weight=${weight}`);
             if (!constraint) attrs.push('constraint=false');
             if (edge.both) attrs.push('dir=both');
@@ -194,7 +196,8 @@ export function instanceToDot(state: AlloyState, theme: Theme = emptyTheme()): s
         const fill = dotColor(color === 'Magic' ? 'Yellow' : color, theme.nodePalette);
         const shape = dotShape(sig ? nodeSetting(state, theme, sig, 'shape') : 'Box');
         const style = sig ? dotStyle(nodeSetting(state, theme, sig, 'style'), sig.var) : 'solid';
-        nodes.push(`  ${quote(atom)} [label=${quote(label.join('\n'))}, shape=${shape}, fillcolor=${quote(fill)}, style=${quote(`filled,${style}`)}];`);
+        const tone = `tone-${(color === 'Magic' ? 'Yellow' : color).toLowerCase()}`;
+        nodes.push(`  ${quote(atom)} [label=${quote(label.join('\n'))}, shape=${shape}, fillcolor=${quote(fill)}, style=${quote(`filled,${style}`)}, class=${quote(tone)}];`);
     }
 
     return [

@@ -4,7 +4,8 @@ import * as path from "node:path";
 import { Graphviz } from "@hpcc-js/wasm-graphviz";
 import { parseInstance } from "../src/visualizer/instance.js";
 import { instanceToDot } from "../src/visualizer/dot.js";
-import { bezierPath, movedEdge, parseLayout, prefersDarkText, type GraphLayout } from "../src/visualizer/layout.js";
+import { bezierPath, movedEdge, parseLayout, type GraphLayout } from "../src/visualizer/layout.js";
+import { edgeColor, nodeColors } from "../src/visualizer/tones.js";
 import { parseTheme } from "../src/visualizer/theme.js";
 import { projectionAtoms, projectState } from "../src/visualizer/projection.js";
 
@@ -24,7 +25,7 @@ describe("Graphviz's layout as data", () => {
             expect(node.x).toBeLessThan(layout.width);
             expect(node.y).toBeGreaterThan(0);
             expect(node.y).toBeLessThan(layout.height);
-            expect([node.shape, node.fill, node.primitives[0].kind]).toEqual(["box", "#ffd700", "polygon"]);
+            expect([node.shape, node.fill, node.primitives[0].kind, node.tone]).toEqual(["box", "#ffd700", "polygon", "tone-yellow"]);
         }
         expect(layout.nodes.find(n => n.id === "Alice$0")!.texts.map(t => t.text)).toEqual(["Alice"]);
     });
@@ -32,7 +33,7 @@ describe("Graphviz's layout as data", () => {
     test("edges: their ends, spline, arrowhead, colour and label", () => {
         const layout = layoutOf(instanceToDot(parseInstance(fixture("family-instance.xml")).states[0]));
         const likes = layout.edges.find(e => e.label?.text === "likes[Alice]" && e.tail !== e.head)!;
-        expect([likes.tail, likes.head, likes.color]).toEqual(["Bob$0", "Alice$0", "#e41a1c"]);
+        expect([likes.tail, likes.head, likes.color, likes.tone]).toEqual(["Bob$0", "Alice$0", "#e41a1c", "tone-magic-0"]);
         expect((likes.points.length - 1) % 3).toBe(0);
         expect(likes.arrows.map(a => a.end)).toEqual(["head"]);
         expect(likes.label!.color).toBe("#e41a1c");
@@ -58,7 +59,7 @@ describe("Graphviz's layout as data", () => {
     });
 });
 
-describe("dragging and contrast", () => {
+describe("dragging", () => {
     test("a dragged edge keeps its shape: its tail end moves with the tail, its head end and arrow with the head", () => {
         const layout = layoutOf(instanceToDot(parseInstance(fixture("family-instance.xml")).states[0]));
         const edge = layout.edges.find(e => e.tail !== e.head)!;
@@ -70,8 +71,25 @@ describe("dragging and contrast", () => {
         expect(moved.label!.x).toBeCloseTo(edge.label!.x + 5);
     });
 
-    test("text is dark on light fills and light on dark ones", () => {
-        expect([prefersDarkText("#ffd700"), prefersDarkText("#ffffff"), prefersDarkText("#6495ed")]).toEqual([true, true, true]);
-        expect([prefersDarkText("#0000ff"), prefersDarkText("#000000"), prefersDarkText("#984ea3")]).toEqual([false, false, false]);
+});
+
+describe("colours from the editor's tokens", () => {
+    test("nodes: a tint of their hue's token, outlined in it, with the editor's text colour", () => {
+        expect(nodeColors("tone-yellow")).toEqual({
+            fill: "color-mix(in srgb, var(--bk-color-warning) 28%, var(--bk-color-background-elevated))",
+            stroke: "var(--bk-color-warning)",
+            ink: "var(--bk-color-foreground)"
+        });
+        expect(nodeColors("tone-red")!.stroke).toBe("var(--bk-color-danger)");
+        expect(nodeColors("tone-black")!.ink).toBe("var(--bk-color-background)");
+        expect([nodeColors(undefined), nodeColors("tone-chartreuse")]).toEqual([undefined, undefined]);
+    });
+
+    test("edges: their hue, Magic relations in turn, and every colour a token", () => {
+        expect([edgeColor("tone-blue"), edgeColor("tone-white"), edgeColor(undefined)]).toEqual(["var(--bk-color-info)", "var(--bk-color-foreground)", undefined]);
+        const magic = Array.from({ length: 7 }, (_, i) => edgeColor(`tone-magic-${i}`)!);
+        expect(new Set(magic).size).toBe(7);
+        expect(edgeColor("tone-magic-7")).toBe(magic[0]);
+        expect(magic.every(c => /^(var\(--bk-color-[a-z-]+\)|color-mix\(in srgb, var\(--bk-[a-z-]+\) \d+%, var\(--bk-[a-z-]+\)\))$/.test(c))).toBe(true);
     });
 });

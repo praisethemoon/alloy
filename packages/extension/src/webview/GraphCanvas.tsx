@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { Icon, IconButton, Tooltip } from 'baukasten-ui/core';
-import { bezierPath, movedEdge, prefersDarkText, type GraphLayout, type LayoutNode, type Point, type Primitive } from '../visualizer/layout.js';
+import { bezierPath, movedEdge, type GraphLayout, type LayoutNode, type Point, type Primitive } from '../visualizer/layout.js';
+import { edgeColor, nodeColors, type NodeColors } from '../visualizer/tones.js';
 
 // The graph, drawn from Graphviz's layout: nodes and edges as SVG in the
 // editor's look, with panning, zooming, dragging nodes, highlighting an atom's
@@ -36,17 +37,14 @@ function dash(dashed: boolean, dotted: boolean): string | undefined {
     return dashed ? '6 4' : dotted ? '1.5 3' : undefined;
 }
 
-function Shape({ node }: { node: LayoutNode }) {
-    const filled = node.fill !== 'none';
-    // A darker shade of the fill outlines the node; unfilled shapes use the editor's muted text colour.
-    const stroke = filled ? `color-mix(in srgb, ${node.fill} 55%, black)` : 'var(--bk-color-foreground-muted)';
-    const common = { stroke, strokeWidth: node.bold ? 2.5 : 1.2, strokeDasharray: dash(node.dashed, node.dotted) };
+function Shape({ node, colors }: { node: LayoutNode, colors: NodeColors }) {
+    const common = { stroke: colors.stroke, strokeWidth: node.bold ? 2.5 : 1.2, strokeDasharray: dash(node.dashed, node.dotted) };
     const box = node.shape === 'box' && node.primitives.length === 1 && node.primitives[0].kind === 'polygon';
     if (box) {
-        return <rect x={node.x - node.width / 2} y={node.y - node.height / 2} width={node.width} height={node.height} rx={5} fill={node.fill} {...common} />;
+        return <rect x={node.x - node.width / 2} y={node.y - node.height / 2} width={node.width} height={node.height} rx={5} fill={colors.fill} {...common} />;
     }
     return <>{node.primitives.map((p: Primitive, i) => {
-        const fill = 'filled' in p && p.filled ? node.fill : 'none';
+        const fill = 'filled' in p && p.filled ? colors.fill : 'none';
         switch (p.kind) {
             case 'polygon': return <polygon key={i} points={pointsAttr(p.points)} fill={fill} {...common} />;
             case 'ellipse': return <ellipse key={i} cx={p.cx} cy={p.cy} rx={p.rx} ry={p.ry} fill={fill} {...common} />;
@@ -152,21 +150,24 @@ export function GraphCanvas({ layout, onAtom }: { layout: GraphLayout, onAtom?: 
                 <svg width="100%" height="100%" role="img" aria-label="Instance graph"
                     onPointerDown={e => start(e, 'pan')} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
                     <g transform={`translate(${view.x},${view.y}) scale(${view.scale})`}>
-                        {edges.map(edge => (
-                            <g key={edge.id} style={faded(!hovered || edge.tail === hovered || edge.head === hovered)}>
-                                <path d={bezierPath(edge.points)} fill="none" stroke={edge.color}
-                                    strokeWidth={edge.bold ? 2.5 : 1.4} strokeDasharray={dash(edge.dashed, edge.dotted)} />
-                                {edge.arrows.map((arrow, i) => <polygon key={i} points={pointsAttr(arrow.points)} fill={edge.color} stroke={edge.color} strokeWidth={0.8} />)}
-                                {edge.label && (
-                                    <text className="alloy-canvas-edge-label" x={edge.label.x} y={edge.label.y} textAnchor={edge.label.align}
-                                        fontSize={edge.label.size} fill={edge.color}>{edge.label.text}</text>
-                                )}
-                            </g>
-                        ))}
+                        {edges.map(edge => {
+                            const color = edgeColor(edge.tone) ?? edge.color;
+                            return (
+                                <g key={edge.id} style={faded(!hovered || edge.tail === hovered || edge.head === hovered)}>
+                                    <path d={bezierPath(edge.points)} fill="none" stroke={color}
+                                        strokeWidth={edge.bold ? 2.5 : 1.4} strokeDasharray={dash(edge.dashed, edge.dotted)} />
+                                    {edge.arrows.map((arrow, i) => <polygon key={i} points={pointsAttr(arrow.points)} fill={color} stroke={color} strokeWidth={0.8} />)}
+                                    {edge.label && (
+                                        <text className="alloy-canvas-edge-label" x={edge.label.x} y={edge.label.y} textAnchor={edge.label.align}
+                                            fontSize={edge.label.size} fill={color}>{edge.label.text}</text>
+                                    )}
+                                </g>
+                            );
+                        })}
                         {layout.nodes.map(node => {
                             const [dx, dy] = moved[node.id] ?? [0, 0];
-                            // Text on the theme's fill colours: dark or light, whichever reads.
-                            const ink = node.fill === 'none' ? 'var(--bk-color-foreground)' : prefersDarkText(node.fill) ? '#1a1a1a' : '#ffffff';
+                            // The theme's colour in the editor's tokens; a node without one keeps Graphviz's fill.
+                            const colors = nodeColors(node.tone) ?? { fill: node.fill, stroke: 'var(--bk-color-foreground-muted)', ink: 'var(--bk-color-foreground)' };
                             return (
                                 <g key={node.id} className="alloy-canvas-node" transform={`translate(${dx},${dy})`}
                                     style={faded(!neighbours || neighbours.has(node.id))}
@@ -175,9 +176,9 @@ export function GraphCanvas({ layout, onAtom }: { layout: GraphLayout, onAtom?: 
                                     onPointerLeave={() => { if (!drag.current) setHovered(undefined); }}
                                     onDoubleClick={() => onAtom?.(node.id)}>
                                     <title>{`${node.id}${onAtom ? ' (double-click to evaluate)' : ''}`}</title>
-                                    <Shape node={node} />
+                                    <Shape node={node} colors={colors} />
                                     {node.texts.map((t, i) => (
-                                        <text key={i} x={t.x} y={t.y} textAnchor={t.align} fontSize={t.size} fill={ink}
+                                        <text key={i} x={t.x} y={t.y} textAnchor={t.align} fontSize={t.size} fill={colors.ink}
                                             fontWeight={i === 0 ? 600 : 400} opacity={i === 0 ? 1 : 0.85}>{t.text}</text>
                                     ))}
                                 </g>
