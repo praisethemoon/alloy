@@ -11,6 +11,8 @@ commands uses Alloy 6.2.0, which the extension ships and runs as is, so what
 you get is what the Alloy app gives you. This is not an official AlloyTools
 project.
 
+<img src="assets/editor.webp" alt="An Alloy model in VS Code, with its outline, code lenses and a finished run" width="720">
+
 ## What it does
 
 Errors as you type, checked against the Alloy Analyzer on the AlloyTools model
