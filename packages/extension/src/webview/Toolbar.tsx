@@ -68,8 +68,11 @@ export function Toolbar(props: ToolbarProps) {
                 <Button size="sm" variant={props.themeOpen ? 'primary' : 'secondary'} aria-pressed={props.themeOpen} onClick={props.onToggleTheme}>
                     <Icon name="symbol-color" /> Theme
                 </Button>)}
-            {tip('Automatic theme customization (will reset current theme)',
-                <Button size="sm" variant="secondary" onClick={props.onMagic}><Icon name="sparkle" /> Magic Layout</Button>)}
+            <Dropdown trigger={<Button size="sm" variant="secondary"><Icon name="sparkle" /> Layout <Icon name="chevron-down" /></Button>}>
+                <Menu size="sm">
+                    <MenuItem icon={<Icon name="sparkle" />} title="Automatic theme customization (will reset current theme)" onClick={props.onMagic}>Magic Layout</MenuItem>
+                </Menu>
+            </Dropdown>
             <Dropdown trigger={<Button size="sm" variant="secondary"><Icon name="export" /> Export <Icon name="chevron-down" /></Button>}>
                 <Menu size="sm">
                     <MenuItem onClick={() => props.onExport('dot')}>Dot…</MenuItem>
@@ -84,13 +87,21 @@ export function Toolbar(props: ToolbarProps) {
                 </Button>)}
             <Separator />
             {temporal
-                ? TRACE_MOVES.map(m => {
-                    const blocked = noEnumeration ?? (m.move === 'trace' && !newTraceAllowed ? 'A new trace can\'t follow New Init or New Fork; use New Config first.' : undefined);
-                    return tip(blocked ?? m.tip,
-                        <span key={m.move}>
-                            <Button size="sm" variant="secondary" disabled={moveDisabled || !!blocked} onClick={() => onMove(m.move)}>{m.label}</Button>
-                        </span>);
-                })
+                // The four moves share one menu, so the toolbar fits a narrow pane.
+                ? (() => {
+                    const moves = (
+                        <Dropdown trigger={<Button size="sm" variant="secondary" disabled={moveDisabled}><Icon name="debug-step-over" /> New <Icon name="chevron-down" /></Button>}>
+                            <Menu size="sm">
+                                {TRACE_MOVES.map(m => {
+                                    const blocked = m.move === 'trace' && !newTraceAllowed ? 'A new trace can\'t follow New Init or New Fork; use New Config first.' : undefined;
+                                    return <MenuItem key={m.move} title={blocked ?? m.tip} disabled={!!blocked} onClick={() => onMove(m.move)}>{m.label}</MenuItem>;
+                                })}
+                            </Menu>
+                        </Dropdown>
+                    );
+                    // Only a disabled menu needs a tooltip, to say why; an open one would sit behind it.
+                    return noEnumeration ? tip(noEnumeration, <span>{moves}</span>) : moves;
+                })()
                 : tip(noEnumeration ?? 'Show a new solution',
                     <span>
                         <Button size="sm" variant="secondary" disabled={moveDisabled} onClick={() => onMove('next')}>
