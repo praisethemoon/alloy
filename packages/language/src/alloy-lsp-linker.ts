@@ -1,5 +1,8 @@
 import { DefaultLinker, type AstNode, type AstNodeDescription, type LinkingError, type ReferenceInfo } from 'langium';
-import { isAtNameExpr, isBoxJoinExpr, isDeclName, isFunDecl, isJoinExpr, isMacroDecl, isNameExpr, isPredDecl, isSigDecl, type JoinExpr, type SigDecl } from './generated/ast.js';
+import {
+    isArrowExpr, isAssertDecl, isAtNameExpr, isBinaryExpr, isBlock, isBoxJoinExpr, isDeclName, isFactDecl, isFunDecl, isImpliesExpr, isJoinExpr,
+    isMacroDecl, isNameExpr, isPredDecl, isQuantifiedExpr, isSequenceExpr, isSigDecl, isUnaryExpr, type BinaryExpr, type SigDecl
+} from './generated/ast.js';
 import type { AlloyLspServices } from './alloy-lsp-module.js';
 import { extendsOrIs, overlaps, signatureFactOf, type AlloyTypeSystem } from './alloy-lsp-types.js';
 
@@ -14,7 +17,8 @@ const localTypes = new Set(['DeclName', 'LetBinding', 'MacroParam']);
 export class AlloyLinker extends DefaultLinker {
 
     protected readonly types: AlloyTypeSystem;
-    protected readonly joinsDeciding = new Set<JoinExpr>();
+    /** Joins and restrictions whose operands are being resolved by each other's type. */
+    protected readonly joinsDeciding = new Set<AstNode>();
 
     constructor(services: AlloyLspServices) {
         super(services);
@@ -40,7 +44,12 @@ export class AlloyLinker extends DefaultLinker {
         }
         // Not called, so a pred or fun with parameters can't be meant.
         const uncalled = candidates.filter(candidate => !parameterCount(this.loadAstNode(candidate)));
-        const pool = uncalled.length > 0 ? uncalled : candidates;
+        // Where only a relation fits, as in s.(New <: init), a pred can't be meant either;
+        // where only a formula fits, as in `init and step`, nothing but a pred can.
+        const fitting = expectsRelation(refInfo.container) ? uncalled.filter(candidate => candidate.type !== 'PredDecl')
+            : expectsFormula(refInfo.container) ? uncalled.filter(candidate => candidate.type === 'PredDecl') : uncalled;
+        const pool = fitting.length > 0 ? fitting : uncalled.length > 0 ? uncalled : candidates;
+        if (pool.length === 1) return pool[0];
         return this.fieldByContext(refInfo.container, pool) ?? this.byJoinType(refInfo.container, pool) ?? pool[0];
     }
 
@@ -87,6 +96,15 @@ export class AlloyLinker extends DefaultLinker {
         const own = sig && isNameExpr(node) ? fields.find(f => extendsOrIs(sig, f.owner)) : undefined;
         const afterDot = isJoinExpr(parent) && parent.right === node;
         if (own && !afterDot) return own.description;
+        if (isRestriction(parent) && !this.joinsDeciding.has(parent)) {
+            this.joinsDeciding.add(parent);
+            try {
+                const byRestriction = this.fieldByRestriction(parent, node, fields);
+                if (byRestriction) return byRestriction;
+            } finally {
+                this.joinsDeciding.delete(parent);
+            }
+        }
         // In f.g with both overloaded, each side's choice types the other: the side asked second gets no say.
         if (isJoinExpr(parent) && !this.joinsDeciding.has(parent)) {
             this.joinsDeciding.add(parent);
@@ -102,12 +120,32 @@ export class AlloyLinker extends DefaultLinker {
         return sig ? fields.find(f => extendsOrIs(f.owner, sig))?.description : undefined;
     }
 
-    protected fieldByJoin(parent: JoinExpr, node: AstNode, fields: Array<{ description: AstNodeDescription, owner: SigDecl }>): AstNodeDescription | undefined {
+    /**
+     * In S <: f, the field whose domain meets S; in f :> S, the field whose
+     * range meets S, as with s.(Lit <: dst) where many sigs have a dst.
+     */
+    protected fieldByRestriction(parent: BinaryExpr, node: AstNode, fields: Array<{ description: AstNodeDescription, owner: SigDecl }>): AstNodeDescription | undefined {
+        const domain = parent.op === '<:' && parent.right === node;
+        if (!domain && !(parent.op === ':>' && parent.left === node)) return undefined;
+        const set = this.types.typeOf(domain ? parent.left : parent.right);
+        if (set.kind !== 'relation') return undefined;
+        const columns = set.relations.filter(r => r.length === 1).map(r => r[0]);
+        return fields.find(f => {
+            const type = this.types.typeOf(this.loadAstNode(f.description)!);
+            return type.kind === 'relation' && type.relations.some(r => columns.some(column => overlaps(column, domain ? r[0] : r[r.length - 1])));
+        })?.description;
+    }
+
+    protected fieldByJoin(parent: AstNode & { left: AstNode, right: AstNode }, node: AstNode, fields: Array<{ description: AstNodeDescription, owner: SigDecl }>): AstNodeDescription | undefined {
         if (parent.right === node) {
             const left = this.types.typeOf(parent.left);
             if (left.kind !== 'relation') return undefined;
             const lastColumns = left.relations.map(r => r[r.length - 1]);
-            return fields.find(f => f.owner.names.some(sig => lastColumns.some(column => overlaps(column, sig))))?.description;
+            // The field's own first column, which for a subset sig's field is the sig's parents.
+            return fields.find(f => {
+                const type = this.types.typeOf(this.loadAstNode(f.description)!);
+                return type.kind === 'relation' && type.relations.some(r => lastColumns.some(column => overlaps(column, r[0])));
+            })?.description;
         }
         if (parent.left === node) {
             const right = this.types.typeOf(parent.right);
@@ -129,6 +167,38 @@ export class AlloyLinker extends DefaultLinker {
         const node = this.loadAstNode(description);
         return !(isDeclName(node) && isSigDecl(node.$container.$container));
     }
+}
+
+/** Operators whose operands are sets or relations, never formulas. */
+const relationalOps = new Set(['+', '-', '++', '&', '<:', ':>', '<<', '>>', '>>>']);
+const relationalUnary = new Set(['~', '^', '*', '#', 'set', 'seq', 'sum', 'int', 'no', 'some', 'lone', 'one']);
+
+/** Whether a name stands where only a set or relation can: an operand of a join, product, restriction, union and the like. */
+function expectsRelation(node: AstNode): boolean {
+    const parent = node.$container;
+    return isJoinExpr(parent) || isArrowExpr(parent) || (isBoxJoinExpr(parent) && parent.target === node)
+        || (isBinaryExpr(parent) && (relationalOps.has(parent.op) || /^(!|not)?(in|=)$/.test(parent.op)))
+        || (isUnaryExpr(parent) && relationalUnary.has(parent.op));
+}
+
+const logicalOps = new Set(['||', 'or', '&&', 'and', '<=>', 'iff', 'until', 'releases', 'since', 'triggered']);
+const logicalUnary = new Set(['!', 'not', 'always', 'eventually', 'after', 'historically', 'once', 'before']);
+
+/** Whether a name stands where only a formula can: an operand of a logical operator, a condition, a fact's or quantifier's body. */
+function expectsFormula(node: AstNode): boolean {
+    const parent = node.$container;
+    if (isBinaryExpr(parent)) return logicalOps.has(parent.op);
+    if (isUnaryExpr(parent)) return logicalUnary.has(parent.op);
+    if (isImpliesExpr(parent)) return parent.condition === node;
+    if (isQuantifiedExpr(parent)) return parent.quantifier !== 'sum' && parent.body === node;
+    if (isSequenceExpr(parent)) return true;
+    // One expression alone in a block may be a fun's value; several, or a fact's or pred's body, are formulas.
+    if (isBlock(parent)) return parent.exprs.length > 1 || isFactDecl(parent.$container) || isPredDecl(parent.$container) || isAssertDecl(parent.$container);
+    return false;
+}
+
+function isRestriction(node: AstNode | undefined): node is BinaryExpr {
+    return isBinaryExpr(node) && (node.op === '<:' || node.op === ':>');
 }
 
 /** How many arguments a name receives when it is called with brackets, or undefined when it is not called. */

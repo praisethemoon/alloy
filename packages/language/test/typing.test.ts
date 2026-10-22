@@ -81,4 +81,48 @@ describe("overloaded fields", () => {
             .toArray();
         expect(owners).toEqual(["A", "B", "B"]);
     });
+
+    test("resolve by the set a restriction keeps, on either side", async () => {
+        const document = await parse(`
+            sig S {} sig X {} sig Y {}
+            sig A extends S { d: X } sig B extends S { d: Y }
+            fact { all s: S | some s.(B <: d) and some s.(A <: d) and some (d :> Y) }
+        `, "file:///typing/restrictions.als");
+        expect((document.diagnostics ?? []).filter(d => d.severity === 1)).toEqual([]);
+        expect(fieldOwners(document, "d")).toEqual(["B", "A", "B"]);
+    });
+
+    test("a field, not a parameterless pred of the same name, where only a relation fits", async () => {
+        const document = await parse(`
+            sig N { init: set N }
+            pred init { some N }
+            fact { some N.init and some N.(N <: init) and init }
+        `, "file:///typing/field-or-pred.als");
+        expect((document.diagnostics ?? []).filter(d => d.severity === 1)).toEqual([]);
+        expect(fieldOwners(document, "init")).toEqual(["N", "N", "?"]);
+    });
 });
+
+describe("fields of subset sigs", () => {
+    test("have their parents' type as their domain", async () => {
+        expect(await diagnostics(`
+            sig S {} sig T in S { r: set S }
+            fact { all s: S | some s.r and some r.S }
+        `)).toEqual([]);
+        expect(await typesInLastFact(`
+            sig S {} sig U {} sig T in S + U { r: set S }
+            fact { some r }
+        `)).toEqual(["S->S + U->S"]);
+    });
+});
+
+/** The sig owning each field that references named `name` resolve to, in document order; "?" for anything else. */
+function fieldOwners(document: Awaited<ReturnType<typeof parse>>, name: string): string[] {
+    return AstUtils.streamAst(document.parseResult.value)
+        .flatMap(node => AstUtils.streamReferences(node))
+        .map(({ reference }) => reference as Reference)
+        .filter(reference => reference.$refText === name)
+        .map(reference => isDeclName(reference.ref) && reference.ref.$container.$container.$type === "SigDecl"
+            ? (reference.ref.$container.$container as { names: Array<{ name: string }> }).names[0].name : "?")
+        .toArray();
+}

@@ -383,7 +383,9 @@ export class AlloyTypeSystem {
         if (!isSigDecl(owner)) return bound;
         const columns = asRelation(bound);
         if (!columns) return UNKNOWN;
-        return relation(...owner.names.flatMap(sig => columns.map(c => [sig, ...c])));
+        // A subset sig is no type of its own: its fields start from its parents' types.
+        const domains = owner.names.flatMap(sig => asRelation(this.sigType(sig)) ?? [[sig]]);
+        return relation(...domains.flatMap(domain => columns.map(c => [...domain, ...c])));
     }
 
     /**
